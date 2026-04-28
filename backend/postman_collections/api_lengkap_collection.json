@@ -1,0 +1,640 @@
+{
+  "info": {
+    "_postman_id": "f1e2d3c4-b5a6-4987-8654-321fedcba987",
+    "name": "API Lengkap - Kasir & Ticketing",
+    "description": "Koleksi Postman komprehensif untuk seluruh endpoint backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Autentikasi",
+      "item": [
+        {
+          "name": "Register Kasir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Response body has user data\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.admin).to.have.property('id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"kasir_test\",\n    \"password\": \"password123\",\n    \"role\": \"kasir\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Kasir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Token and user data received\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.have.property('token');",
+                  "    pm.expect(jsonData.data.user).to.have.property('id');",
+                  "    // Simpan token untuk digunakan di request lain",
+                  "    pm.collectionVariables.set(\"authToken\", jsonData.data.token);",
+                  "    pm.collectionVariables.set(\"kasirId\", jsonData.data.user.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"kasir_test\",\n    \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Santri (by FaceID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Santri token received\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.have.property('token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"faceDescriptor\": [0.1, -0.2, 0.3, -0.4, 0.5, -0.6, 0.7, -0.8, 0.9, -0.1, 0.11, -0.12, 0.13, -0.14, 0.15, -0.16, 0.17, -0.18, 0.19, -0.2, 0.21, -0.22, 0.23, -0.24, 0.25, -0.26, 0.27, -0.28, 0.29, -0.3, 0.31, -0.32, 0.33, -0.34, 0.35, -0.36, 0.37, -0.38, 0.39, -0.4, 0.41, -0.42, 0.43, -0.44, 0.45, -0.46, 0.47, -0.48, 0.49, -0.5, 0.51, -0.52, 0.53, -0.54, 0.55, -0.56, 0.57, -0.58, 0.59, -0.6, 0.61, -0.62, 0.63, -0.64, 0.65, -0.66, 0.67, -0.68, 0.69, -0.7, 0.71, -0.72, 0.73, -0.74, 0.75, -0.76, 0.77, -0.78, 0.79, -0.8, 0.81, -0.82, 0.83, -0.84, 0.85, -0.86, 0.87, -0.88, 0.89, -0.9, 0.91, -0.92, 0.93, -0.94, 0.95, -0.96, 0.97, -0.98, 0.99, -1.0, 1.01, -1.02, 1.03, -1.04, 1.05, -1.06, 1.07, -1.08, 1.09, -1.1, 1.11, -1.12, 1.13, -1.14, 1.15, -1.16, 1.17, -1.18, 1.19, -1.2, 1.21, -1.22, 1.23, -1.24, 1.25, -1.26, 1.27, -1.28]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/santri",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login", "santri"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Kasir - Manajemen Transaksi",
+      "item": [
+        {
+          "name": "SETUP: Create Santri for Testing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Save Santri ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set(\"santriId\", jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"no\": 99,\n    \"id_santri\": \"SNT_TEST_99\",\n    \"nama_santri\": \"Santri Uji Coba\",\n    \"jenis_kelamin\": \"L\",\n    \"kelas\": \"XII\",\n    \"unit\": \"Asrama Uji\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/santri",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "santri"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SETUP: Add Face ID to Santri",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"faceDescriptor\": [0.1, -0.2, 0.3, -0.4, 0.5, -0.6, 0.7, -0.8, 0.9, -0.1, 0.11, -0.12, 0.13, -0.14, 0.15, -0.16, 0.17, -0.18, 0.19, -0.2, 0.21, -0.22, 0.23, -0.24, 0.25, -0.26, 0.27, -0.28, 0.29, -0.3, 0.31, -0.32, 0.33, -0.34, 0.35, -0.36, 0.37, -0.38, 0.39, -0.4, 0.41, -0.42, 0.43, -0.44, 0.45, -0.46, 0.47, -0.48, 0.49, -0.5, 0.51, -0.52, 0.53, -0.54, 0.55, -0.56, 0.57, -0.58, 0.59, -0.6, 0.61, -0.62, 0.63, -0.64, 0.65, -0.66, 0.67, -0.68, 0.69, -0.7, 0.71, -0.72, 0.73, -0.74, 0.75, -0.76, 0.77, -0.78, 0.79, -0.8, 0.81, -0.82, 0.83, -0.84, 0.85, -0.86, 0.87, -0.88, 0.89, -0.9, 0.91, -0.92, 0.93, -0.94, 0.95, -0.96, 0.97, -0.98, 0.99, -1.0, 1.01, -1.02, 1.03, -1.04, 1.05, -1.06, 1.07, -1.08, 1.09, -1.1, 1.11, -1.12, 1.13, -1.14, 1.15, -1.16, 1.17, -1.18, 1.19, -1.2, 1.21, -1.22, 1.23, -1.24, 1.25, -1.26, 1.27, -1.28]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/santri/{{santriId}}/faceid",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "santri", "{{santriId}}", "faceid"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Top Up Saldo Santri (by Name)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Top up was successful\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.amount_topped_up).to.eql(50000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nama_santri\": \"Santri Uji Coba\",\n    \"amount\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["topup"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pembelian (oleh Santri)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Purchase was successful\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.transaction.santriId).to.eql(parseInt(pm.collectionVariables.get(\"santriId\")));",
+                  "    pm.collectionVariables.set(\"transactionId\", jsonData.data.transaction.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"santriId\": {{santriId}},\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 2\n        }\n    ],\n    \"payment_method\": \"Saldo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/purchase",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "purchase"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pembelian (oleh Kasir)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Cashier purchase was successful\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.transaction.santriId).to.be.null;",
+                  "    pm.expect(jsonData.data.transaction.kasirId).to.eql(parseInt(pm.collectionVariables.get(\"kasirId\")));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 1\n        }\n    ],\n    \"payment_method\": \"Tunai\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/purchase",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "purchase"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction Details by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Ticketing",
+      "item": [
+        {
+          "name": "Create Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"Nama\": \"Staff Uji Coba\",\n    \"Gender\": \"P\",\n    \"NIK\": \"3301010101990099\",\n    \"No_WhatsApp\": \"081234567800\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/staff",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "staff"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ticket for Reguler",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"Nama\": \"Pengunjung Umum\",\n    \"No_Telepon\": \"081212121212\",\n    \"Kuantitas\": 2,\n    \"Metode_Pembayaran\": \"QRIS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/reguler",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "reguler"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ticket for Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"NIK\": \"3301010101990099\",\n    \"Kuantitas\": 1,\n    \"Metode_Pembayaran\": \"Tunai\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/staff",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "staff"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Laporan",
+      "item": [
+        {
+          "name": "Get Transaction Summary (Weekly)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/summary?period=weekly",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "summary"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "weekly"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Daily Graph Data",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/daily-graph?period=monthly",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "daily-graph"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dashboard Analytics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "dashboard"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "kasirId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "santriId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transactionId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

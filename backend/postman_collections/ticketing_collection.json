@@ -1,0 +1,681 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "name": "Ticketing & Customer API",
+    "description": "Koleksi untuk menguji endpoint Ticketing dan Manajemen Customer.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Customer Management",
+      "description": "Endpoint untuk mengelola data semua jenis customer (CRUD).",
+      "item": [
+        {
+          "name": "Staff",
+          "item": [
+            {
+              "name": "Create Staff",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 201 Created\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Response body has required properties\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData).to.have.property('id');",
+                      "    pm.expect(jsonData).to.have.property('Nama', 'Budi Staff');",
+                      "    pm.collectionVariables.set(\"staffId\", jsonData.id);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"Nama\": \"Budi Staff\",\n    \"Gender\": \"L\",\n    \"NIK\": \"3301010101950003\",\n    \"No_WhatsApp\": \"081234567899\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/staff",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "staff"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get All Staff",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Response is an array\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData).to.be.an('array');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/customers/staff",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "staff"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Staff",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"Staff name was updated\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.Nama).to.eql('Budi Staff Updated');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"Nama\": \"Budi Staff Updated\",\n    \"No_WhatsApp\": \"089988776655\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/staff/{{staffId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "staff", "{{staffId}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Staff",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/customers/staff/{{staffId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "staff", "{{staffId}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "PPMI",
+          "item": [
+            {
+              "name": "Create PPMI",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 201 Created\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Response has an ID\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData).to.have.property('id');",
+                      "    pm.collectionVariables.set(\"ppmiId\", jsonData.id);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"Username\": \"ppmi_baru\",\n    \"Login_Terakhir\": \"2025-07-22T02:00:00.000Z\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/ppmi",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "ppmi"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Manage FaceID PPMI",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test(\"FaceID was updated correctly\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.customer.FaceID).to.not.be.null;",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"FaceID\": \"ini_adalah_data_text_face_id_yang_panjang_untuk_ppmi\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/ppmi/{{ppmiId}}/faceid",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "ppmi", "{{ppmiId}}", "faceid"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Santri",
+          "item": [
+            {
+              "name": "Create Santri",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 201 Created\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Response has an ID and correct name\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData).to.have.property('id');",
+                      "    pm.expect(jsonData.nama_santri).to.eql('Santri Baru');",
+                      "    pm.collectionVariables.set(\"santriId\", jsonData.id);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"no\": 10,\n    \"id_santri\": \"SNT010\",\n    \"nama_santri\": \"Santri Baru\",\n    \"jenis_kelamin\": \"P\",\n    \"kelas\": \"XI\",\n    \"unit\": \"Asrama C\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/santri",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "santri"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Manage FaceID Santri",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"FaceID\": \"ini_adalah_data_text_face_id_yang_panjang_untuk_santri\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/santri/{{santriId}}/faceid",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "santri", "{{santriId}}", "faceid"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Member",
+          "item": [
+            {
+              "name": "Create Member",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 201 Created\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "pm.test(\"Response has an ID\", function () {",
+                      "    const jsonData = pm.response.json();",
+                      "    pm.expect(jsonData).to.have.property('id');",
+                      "    pm.collectionVariables.set(\"memberId\", jsonData.id);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"Nama\": \"Rina Member\",\n    \"No_Telepon\": \"081122334455\",\n    \"Tanggal_Kadaluarsa\": \"2026-01-01T00:00:00.000Z\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/member",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "member"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Manage FaceID Member",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"FaceID\": \"ini_adalah_data_text_face_id_yang_panjang_untuk_member\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/customers/member/{{memberId}}/faceid",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["customers", "member", "{{memberId}}", "faceid"]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Ticketing Process",
+      "description": "Endpoint untuk proses pembelian tiket.",
+      "item": [
+        {
+          "name": "Ticket for Reguler",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Sale record was created correctly\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('Kategori', 'Reguler');",
+                  "    pm.expect(jsonData.data).to.have.property('Kuantitas', 2);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"Nama\": \"Pengunjung Umum\",\n    \"No_Telepon\": \"081212121212\",\n    \"Kuantitas\": 2,\n    \"Metode_Pembayaran\": \"QRIS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/reguler",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "reguler"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ticket for Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"NIK\": \"3301010101950003\",\n    \"Kuantitas\": 1,\n    \"Metode_Pembayaran\": \"Tunai\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/staff",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "staff"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ticket for PPMI (by FaceID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"FaceID\": \"ini_adalah_data_text_face_id_yang_panjang_untuk_ppmi\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/ppmi",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "ppmi"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ticket for Santri (by FaceID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"FaceID\": \"ini_adalah_data_text_face_id_yang_panjang_untuk_santri\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/santri",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "santri"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ticket for Member (by FaceID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"FaceID\": \"ini_adalah_data_text_face_id_yang_panjang_untuk_member\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/member",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "member"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ticket Price Management",
+      "description": "Endpoint untuk mengatur harga tiket.",
+      "item": [
+        {
+          "name": "Set Ticket Price",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Price was set correctly\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.harga).to.eql(15000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"kategori\": \"Reguler\",\n    \"harga\": 15000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/prices",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "prices"]
+            },
+            "description": "Set harga untuk 'Reguler' atau 'Staff'."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Ticket Prices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ticketing/prices",
+              "host": ["{{baseUrl}}"],
+              "path": ["ticketing", "prices"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    }
+  ]
+}
