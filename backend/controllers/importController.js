@@ -84,6 +84,22 @@ const importConfig = {
   },
 };
 
+const getCellValue = (val) => {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object") {
+    if (val.result !== undefined) {
+      return val.result;
+    }
+    if (val.richText !== undefined) {
+      return val.richText.map((t) => t.text).join("");
+    }
+    if (val.text !== undefined) {
+      return val.text;
+    }
+  }
+  return val;
+};
+
 const importController = {
   /**
    * Fungsi generik untuk mengimpor data dari Excel berdasarkan kategori.
@@ -119,7 +135,7 @@ const importController = {
           const rowValues = row.values;
           if (rowValues) {
             for (let c = 1; c < rowValues.length; c++) {
-              currentHeaders.push(String(rowValues[c] || "").trim());
+              currentHeaders.push(String(getCellValue(rowValues[c]) || "").trim());
             }
           }
 
@@ -146,7 +162,7 @@ const importController = {
         const firstRow = bestSheet.getRow(1).values;
         if (firstRow) {
           for (let c = 1; c < firstRow.length; c++) {
-            bestHeaders.push(String(firstRow[c] || "").trim());
+            bestHeaders.push(String(getCellValue(firstRow[c]) || "").trim());
           }
         }
       }
@@ -163,7 +179,7 @@ const importController = {
             for (let c = 1; c < rowValues.length; c++) {
               const header = headers[c - 1];
               if (header) {
-                rowData[header] = rowValues[c];
+                rowData[header] = getCellValue(rowValues[c]);
               }
             }
           }
