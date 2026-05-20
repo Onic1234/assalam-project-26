@@ -62,6 +62,13 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import FaceRegistrationDialog from '@/components/face-registration-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // --- START: API Logic Abstraction ---
 
@@ -83,7 +90,8 @@ const getAuthHeaders = (includeContentType = true) => {
 interface ApiMember {
   id: number;
   Nama: string;
-  No_Telepon: string;
+  Jenis_Kelamin: string | null;
+  Jenis_Member: string | null;
   Tanggal_Kadaluarsa: string;
   FaceID: string | null;
   Dibuat: string;
@@ -93,7 +101,8 @@ interface ApiMember {
 interface Member {
   id: number;
   nama: string;
-  noTelepon: string;
+  jenisKelamin: string | null;
+  jenisMember: string | null;
   expirationDate: string; // Format YYYY-MM-DD
   faceRegistered: boolean;
   createdAt: string; // Format dd/mm/yyyy
@@ -102,7 +111,8 @@ interface Member {
 // Interface untuk payload saat membuat atau update member
 interface MemberInput {
   Nama: string;
-  No_Telepon: string;
+  Jenis_Kelamin: string | null;
+  Jenis_Member: string | null;
   Tanggal_Kadaluarsa: string;
 }
 
@@ -219,7 +229,8 @@ export default function MemberManagementPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [formData, setFormData] = useState({
     nama: '',
-    noTelepon: '',
+    jenisKelamin: '',
+    jenisMember: '',
     expirationDate: '',
   });
   const [isFaceRegistrationDialogOpen, setIsFaceRegistrationDialogOpen] =
@@ -244,7 +255,8 @@ export default function MemberManagementPage() {
       const transformedMembers = apiData.map((member) => ({
         id: member.id,
         nama: member.Nama,
-        noTelepon: member.No_Telepon,
+        jenisKelamin: member.Jenis_Kelamin,
+        jenisMember: member.Jenis_Member,
         expirationDate: member.Tanggal_Kadaluarsa.split('T')[0], // Format ke YYYY-MM-DD
         faceRegistered: member.FaceID !== null && member.FaceID !== '[]',
         createdAt: new Date(member.Dibuat).toLocaleDateString('id-ID'),
@@ -271,10 +283,10 @@ export default function MemberManagementPage() {
 
   // --- CRUD Handlers ---
   const handleAddMember = async () => {
-    if (!formData.nama || !formData.noTelepon || !formData.expirationDate) {
+    if (!formData.nama || !formData.expirationDate) {
       toast({
         title: 'Error',
-        description: 'Semua kolom wajib diisi.',
+        description: 'Nama dan Tanggal Kadaluarsa wajib diisi.',
         variant: 'destructive',
       });
       return;
@@ -283,7 +295,8 @@ export default function MemberManagementPage() {
     try {
       const payload: MemberInput = {
         Nama: formData.nama,
-        No_Telepon: formData.noTelepon,
+        Jenis_Kelamin: formData.jenisKelamin || null,
+        Jenis_Member: formData.jenisMember || null,
         Tanggal_Kadaluarsa: formData.expirationDate,
       };
       await api.createMember(payload);
@@ -292,7 +305,7 @@ export default function MemberManagementPage() {
         description: 'Member baru berhasil ditambahkan.',
       });
       setIsAddDialogOpen(false);
-      setFormData({ nama: '', noTelepon: '', expirationDate: '' });
+      setFormData({ nama: '', jenisKelamin: '', jenisMember: '', expirationDate: '' });
       await fetchMembers();
     } catch (error) {
       toast({
@@ -307,7 +320,6 @@ export default function MemberManagementPage() {
     if (
       !selectedMember ||
       !formData.nama ||
-      !formData.noTelepon ||
       !formData.expirationDate
     ) {
       return;
@@ -315,7 +327,8 @@ export default function MemberManagementPage() {
     try {
       const payload: MemberInput = {
         Nama: formData.nama,
-        No_Telepon: formData.noTelepon,
+        Jenis_Kelamin: formData.jenisKelamin || null,
+        Jenis_Member: formData.jenisMember || null,
         Tanggal_Kadaluarsa: formData.expirationDate,
       };
       await api.updateMember(selectedMember.id, payload);
@@ -399,7 +412,7 @@ export default function MemberManagementPage() {
   const filteredMembers = memberList.filter(
     (member) =>
       member.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.noTelepon.includes(searchTerm)
+      (member.jenisMember || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const isExpired = (expirationDate: string) => {
@@ -410,7 +423,8 @@ export default function MemberManagementPage() {
     setSelectedMember(member);
     setFormData({
       nama: member.nama,
-      noTelepon: member.noTelepon,
+      jenisKelamin: member.jenisKelamin || '',
+      jenisMember: member.jenisMember || '',
       expirationDate: member.expirationDate,
     });
     setIsEditDialogOpen(true);
@@ -598,16 +612,37 @@ export default function MemberManagementPage() {
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="noTelepon">No. Telepon</Label>
+                          <Label htmlFor="jenisKelamin">Jenis Kelamin</Label>
+                          <Select
+                            value={formData.jenisKelamin}
+                            onValueChange={(value) =>
+                              setFormData({
+                                ...formData,
+                                jenisKelamin: value,
+                              })
+                            }
+                          >
+                            <SelectTrigger id="jenisKelamin">
+                              <SelectValue placeholder="Pilih Jenis Kelamin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="L">Laki-laki (L)</SelectItem>
+                              <SelectItem value="P">Perempuan (P)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="jenisMember">Jenis Member</Label>
                           <Input
-                            id="noTelepon"
-                            value={formData.noTelepon}
+                            id="jenisMember"
+                            value={formData.jenisMember}
                             onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                noTelepon: e.target.value,
+                                jenisMember: e.target.value,
                               })
                             }
+                            placeholder="Contoh: VIP, Reguler, Premium"
                           />
                         </div>
                         <div className="grid gap-2">
@@ -659,7 +694,8 @@ export default function MemberManagementPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nama</TableHead>
-                      <TableHead>No. Telepon</TableHead>
+                      <TableHead>Jenis Kelamin</TableHead>
+                      <TableHead>Jenis Member</TableHead>
                       <TableHead>Kadaluarsa</TableHead>
                       <TableHead>Face ID</TableHead>
                       <TableHead>Dibuat</TableHead>
@@ -669,13 +705,13 @@ export default function MemberManagementPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : filteredMembers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           Tidak ada data member
                         </TableCell>
                       </TableRow>
@@ -683,7 +719,8 @@ export default function MemberManagementPage() {
                       filteredMembers.map((member) => (
                         <TableRow key={member.id}>
                           <TableCell>{member.nama}</TableCell>
-                          <TableCell>{member.noTelepon}</TableCell>
+                          <TableCell>{member.jenisKelamin === 'L' ? 'Laki-laki' : member.jenisKelamin === 'P' ? 'Perempuan' : '-'}</TableCell>
+                          <TableCell>{member.jenisMember || '-'}</TableCell>
                           <TableCell>
                             {new Date(member.expirationDate).toLocaleDateString(
                               'id-ID'
@@ -699,9 +736,9 @@ export default function MemberManagementPage() {
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={
-                                member.faceRegistered ? 'default' : 'secondary'
-                              }
+                               variant={
+                                 member.faceRegistered ? 'default' : 'secondary'
+                               }
                             >
                               {member.faceRegistered ? 'Terdaftar' : 'Belum'}
                             </Badge>
@@ -785,13 +822,37 @@ export default function MemberManagementPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-noTelepon">No. Telepon</Label>
-                  <Input
-                    id="edit-noTelepon"
-                    value={formData.noTelepon}
-                    onChange={(e) =>
-                      setFormData({ ...formData, noTelepon: e.target.value })
+                  <Label htmlFor="edit-jenisKelamin">Jenis Kelamin</Label>
+                  <Select
+                    value={formData.jenisKelamin}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        jenisKelamin: value,
+                      })
                     }
+                  >
+                    <SelectTrigger id="edit-jenisKelamin">
+                      <SelectValue placeholder="Pilih Jenis Kelamin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="L">Laki-laki (L)</SelectItem>
+                      <SelectItem value="P">Perempuan (P)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-jenisMember">Jenis Member</Label>
+                  <Input
+                    id="edit-jenisMember"
+                    value={formData.jenisMember}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        jenisMember: e.target.value,
+                      })
+                    }
+                    placeholder="Contoh: VIP, Reguler, Premium"
                   />
                 </div>
                 <div className="grid gap-2">

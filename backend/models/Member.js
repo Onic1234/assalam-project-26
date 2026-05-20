@@ -13,10 +13,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      No_Telepon: {
+      Jenis_Kelamin: {
+        type: DataTypes.ENUM("L", "P"),
+        allowNull: true,
+      },
+      Jenis_Member: {
         type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
+        allowNull: true,
       },
       Tanggal_Kadaluarsa: {
         type: DataTypes.DATE,

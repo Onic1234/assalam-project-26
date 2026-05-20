@@ -13,10 +13,13 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      No_Telepon: {
+      Jenis_Kelamin: {
+        type: Sequelize.ENUM("L", "P"),
+        allowNull: true,
+      },
+      Jenis_Member: {
         type: Sequelize.STRING,
-        allowNull: false,
-        unique: true,
+        allowNull: true,
       },
       Tanggal_Kadaluarsa: {
         type: Sequelize.DATE,

@@ -112,7 +112,8 @@ CREATE TABLE `staffs` (
 CREATE TABLE `members` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `Nama` VARCHAR(255) NOT NULL,
-    `No_Telepon` VARCHAR(255) NOT NULL UNIQUE,
+    `Jenis_Kelamin` ENUM('L', 'P') NULL,
+    `Jenis_Member` VARCHAR(255) NULL,
     `Tanggal_Kadaluarsa` DATETIME NOT NULL,
     `FaceID` TEXT,
     `Dibuat` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

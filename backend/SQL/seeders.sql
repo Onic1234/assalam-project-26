@@ -55,8 +55,8 @@ INSERT INTO `ppmis` (`id`, `Username`, `FaceID`, `Dibuat`, `Login_Terakhir`) VAL
 INSERT INTO `staffs` (`id`, `Nama`, `Gender`, `No_WhatsApp`, `Dibuat`) VALUES
 (1, 'Budi Staff', 'L', '081234567890', CURRENT_TIMESTAMP);
 
-INSERT INTO `members` (`id`, `Nama`, `No_Telepon`, `Tanggal_Kadaluarsa`, `FaceID`, `Dibuat`) VALUES
-(1, 'Rina Member', '085712345678', DATE_ADD(NOW(), INTERVAL 1 YEAR), '[0.02170095220208168,0.043474309146404266,0.05788769945502281]', CURRENT_TIMESTAMP);
+INSERT INTO `members` (`id`, `Nama`, `Jenis_Kelamin`, `Jenis_Member`, `Tanggal_Kadaluarsa`, `FaceID`, `Dibuat`) VALUES
+(1, 'Rina Member', 'P', 'VIP', DATE_ADD(NOW(), INTERVAL 1 YEAR), '[0.02170095220208168,0.043474309146404266,0.05788769945502281]', CURRENT_TIMESTAMP);
 
 INSERT INTO `regulers` (`id`, `Nama`, `No_Telepon`) VALUES
 (1, 'Pengunjung Umum 1', '089987654321');

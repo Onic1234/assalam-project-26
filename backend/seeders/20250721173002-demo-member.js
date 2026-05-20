@@ -10,7 +10,8 @@ module.exports = {
       [
         {
           Nama: "Rina Herawati",
-          No_Telepon: "085712345678",
+          Jenis_Kelamin: "P",
+          Jenis_Member: "Siswa",
           Tanggal_Kadaluarsa: tomorrow,
           FaceID: "faceid_member_001",
           Dibuat: new Date(),
