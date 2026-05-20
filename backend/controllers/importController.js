@@ -96,26 +96,88 @@ const importController = {
         return Boom.badRequest("File Excel harus diupload");
       }
 
+      const { model, uniqueKey, fieldMapping, requiredFields } = config;
+
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(fileBuffer);
-      const worksheet = workbook.worksheets[0];
 
+      let bestSheet = workbook.worksheets[0];
+      let headerRowNumber = 1;
+      let maxMatches = 0;
+      let bestHeaders = [];
+
+      for (const sheet of workbook.worksheets) {
+        for (let r = 1; r <= Math.min(sheet.rowCount, 20); r++) {
+          const row = sheet.getRow(r);
+          const currentHeaders = [];
+          const rowValues = row.values;
+          if (rowValues) {
+            for (let c = 1; c < rowValues.length; c++) {
+              currentHeaders.push(String(rowValues[c] || "").trim());
+            }
+          }
+
+          let matches = 0;
+          for (const h of currentHeaders) {
+            if (h && fieldMapping[h]) {
+              matches++;
+            }
+          }
+
+          if (matches > maxMatches) {
+            maxMatches = matches;
+            bestSheet = sheet;
+            headerRowNumber = r;
+            bestHeaders = currentHeaders;
+          }
+        }
+      }
+
+      if (maxMatches === 0) {
+        bestSheet = workbook.worksheets[0];
+        headerRowNumber = 1;
+        bestHeaders = [];
+        const firstRow = bestSheet.getRow(1).values;
+        if (firstRow) {
+          for (let c = 1; c < firstRow.length; c++) {
+            bestHeaders.push(String(firstRow[c] || "").trim());
+          }
+        }
+      }
+
+      const worksheet = bestSheet;
       const dataFromExcel = [];
-      const headers = [];
-      worksheet.getRow(1).eachCell((cell) => {
-        headers.push(cell.value);
-      });
+      const headers = bestHeaders;
 
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) {
+        if (rowNumber > headerRowNumber) {
           const rowData = {};
-          row.eachCell((cell, colNumber) => {
-            if (headers[colNumber - 1]) {
-              rowData[headers[colNumber - 1]] = cell.value;
+          const rowValues = row.values;
+          if (rowValues) {
+            for (let c = 1; c < rowValues.length; c++) {
+              const header = headers[c - 1];
+              if (header) {
+                rowData[header] = rowValues[c];
+              }
             }
-          });
+          }
+
           if (Object.keys(rowData).length > 0) {
-            dataFromExcel.push({ rowNumber, data: rowData });
+            const isHeaderDuplicate = Object.keys(rowData).every(
+              (key) => String(rowData[key] || "").trim() === key
+            );
+
+            const nameKey = Object.keys(fieldMapping).find(
+              (k) =>
+                fieldMapping[k] === "Nama" ||
+                fieldMapping[k] === "nama_santri" ||
+                fieldMapping[k] === "Username"
+            );
+            const nameVal = nameKey ? String(rowData[nameKey] || "").trim() : "";
+
+            if (!isHeaderDuplicate && nameVal !== "") {
+              dataFromExcel.push({ rowNumber, data: rowData });
+            }
           }
         }
       });
@@ -124,18 +186,14 @@ const importController = {
         return Boom.badRequest("File Excel kosong atau tidak memiliki data");
       }
 
-      const { model, uniqueKey, fieldMapping, requiredFields } = config;
-
       const uniqueKeysFromExcel = dataFromExcel
-        .map((item) =>
-          String(
-            item.data[
-              Object.keys(fieldMapping).find(
-                (key) => fieldMapping[key] === uniqueKey
-              )
-            ] || ""
-          ).trim()
-        )
+        .map((item) => {
+          const matchingExcelHeaders = Object.keys(fieldMapping).filter(
+            (key) => fieldMapping[key] === uniqueKey
+          );
+          const header = matchingExcelHeaders.find((h) => item.data[h] !== undefined) || uniqueKey;
+          return String(item.data[header] || "").trim();
+        })
         .filter(Boolean);
 
       const existingRecords = await model.findAll({
@@ -156,6 +214,44 @@ const importController = {
         for (const excelHeader in fieldMapping) {
           if (item.data[excelHeader] !== undefined) {
             mappedData[fieldMapping[excelHeader]] = item.data[excelHeader];
+          }
+        }
+
+        // Normalisasi Jenis Kelamin (L/P)
+        if (mappedData.Jenis_Kelamin) {
+          const jk = String(mappedData.Jenis_Kelamin).trim().toUpperCase();
+          if (jk.startsWith("L")) {
+            mappedData.Jenis_Kelamin = "L";
+          } else if (jk.startsWith("P")) {
+            mappedData.Jenis_Kelamin = "P";
+          } else {
+            mappedData.Jenis_Kelamin = null;
+          }
+        }
+
+        // Parse format tanggal jika dikirim sebagai string
+        for (const dateField of ["Tanggal_Kadaluarsa", "Dibuat"]) {
+          if (mappedData[dateField]) {
+            const rawDate = mappedData[dateField];
+            if (typeof rawDate === "string") {
+              const parts = rawDate.split(/[-/ ]/);
+              if (parts.length >= 3) {
+                if (parts[2].length === 4) {
+                  mappedData[dateField] = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                } else if (parts[0].length === 4) {
+                  mappedData[dateField] = new Date(rawDate);
+                }
+              } else {
+                const parsed = new Date(rawDate);
+                if (!isNaN(parsed.getTime())) {
+                  mappedData[dateField] = parsed;
+                }
+              }
+            } else if (rawDate instanceof Date) {
+              if (isNaN(rawDate.getTime())) {
+                delete mappedData[dateField];
+              }
+            }
           }
         }
 
