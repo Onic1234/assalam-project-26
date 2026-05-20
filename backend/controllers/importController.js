@@ -240,14 +240,15 @@ const importController = {
         }
 
         // Normalisasi Jenis Kelamin (L/P)
-        if (mappedData.Jenis_Kelamin) {
-          const jk = String(mappedData.Jenis_Kelamin).trim().toUpperCase();
+        const jkField = mappedData.jenis_kelamin !== undefined ? "jenis_kelamin" : "Jenis_Kelamin";
+        if (mappedData[jkField] !== undefined) {
+          const jk = String(mappedData[jkField]).trim().toUpperCase();
           if (jk.startsWith("L")) {
-            mappedData.Jenis_Kelamin = "L";
+            mappedData[jkField] = "L";
           } else if (jk.startsWith("P")) {
-            mappedData.Jenis_Kelamin = "P";
+            mappedData[jkField] = "P";
           } else {
-            mappedData.Jenis_Kelamin = null;
+            mappedData[jkField] = null;
           }
         }
 
