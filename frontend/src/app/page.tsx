@@ -106,7 +106,7 @@ export default function HomePage() {
           </div>
         </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-4">
-          Let's Get Wet!
+          Let&apos;s Get Wet!
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
           Nikmati pengalaman berenang dengan fasilitas premium
@@ -158,14 +158,10 @@ export default function HomePage() {
             </div>
             {/* --- AKHIR PEMBARUAN TAMPILAN HARGA --- */}
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="text-sm">
               <div className="bg-white p-4 rounded-lg shadow-sm">
                 <p className="font-semibold text-gray-800">Jam Buka</p>
-                <p className="text-gray-600">06:00 - 18:00</p>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <p className="font-semibold text-gray-800">Fasilitas</p>
-                <p className="text-gray-600">Lengkap</p>
+                <p className="text-gray-600">06:00 - 21:00</p>
               </div>
             </div>
 
