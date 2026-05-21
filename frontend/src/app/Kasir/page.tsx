@@ -179,6 +179,23 @@ export default function Dashboard() {
     }
     loadModels();
     loadProducts();
+
+    // Check if there is a saved cashier session in localStorage
+    const savedToken = localStorage.getItem('kasirToken');
+    const savedUser = localStorage.getItem('kasirUser');
+    if (savedToken && savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser.role === 'kasir') {
+          setAuthenticatedUser(parsedUser);
+          setAuthToken(savedToken);
+          setAuthFlow('dashboard');
+          setScanMode('product');
+        }
+      } catch (e) {
+        console.error('Error parsing saved cashier user:', e);
+      }
+    }
   }, []);
 
   const loadModels = async () => {
@@ -541,6 +558,9 @@ export default function Dashboard() {
       setAuthFlow('dashboard');
       setScanMode('product');
 
+      localStorage.setItem('kasirToken', result.data.token);
+      localStorage.setItem('kasirUser', JSON.stringify(result.data.user));
+
       setIsKasirLoginModalOpen(false);
       setKasirUsername('');
       setKasirPassword('');
@@ -564,6 +584,8 @@ export default function Dashboard() {
     setScannedProducts([]);
     setDetectionFeedback({ status: null, message: '' });
     setScanMode('product');
+    localStorage.removeItem('kasirToken');
+    localStorage.removeItem('kasirUser');
   }, [stopCamera]);
 
   const addProductToCart = useCallback((product: Product) => {
