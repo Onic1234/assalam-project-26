@@ -1456,16 +1456,16 @@ export default function Dashboard() {
                 ? 'Pembayaran Berhasil!'
                 : 'Pembayaran Gagal!'}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {paymentResult?.message}
-              {paymentResult?.success &&
-                paymentResult.newBalance !== undefined && (
-                  <div className="mt-2">
-                    <p>
+            <AlertDialogDescription asChild>
+              <div className="text-muted-foreground text-sm">
+                {paymentResult?.message}
+                {paymentResult?.success &&
+                  paymentResult.newBalance !== undefined && (
+                    <div className="mt-2 font-medium">
                       Saldo baru: Rp {paymentResult.newBalance.toLocaleString()}
-                    </p>
-                  </div>
-                )}
+                    </div>
+                  )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
         </AlertDialogContent>
