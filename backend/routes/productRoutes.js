@@ -35,6 +35,7 @@ const productRoutes = [
               "number.positive": "Category ID harus bernilai positif",
               "number.integer": "Category ID harus berupa bilangan bulat",
             }),
+          image: Joi.string().allow(null, "").optional(),
         }),
       },
       description: "Membuat produk baru",
@@ -58,6 +59,7 @@ const productRoutes = [
           price: Joi.number().positive().optional(),
           stock: Joi.number().integer().min(0).optional(),
           categoryId: Joi.number().integer().positive().allow(null).optional(),
+          image: Joi.string().allow(null, "").optional(),
         })
           .min(1)
           .messages({
@@ -195,6 +197,7 @@ const productRoutes = [
                     .positive()
                     .allow(null)
                     .optional(),
+                  image: Joi.string().allow(null, "").optional(),
                 })
                   .min(1)
                   .required(),

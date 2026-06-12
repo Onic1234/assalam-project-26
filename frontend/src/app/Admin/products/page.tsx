@@ -27,7 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
 import {
   Grid,
   List,
@@ -39,6 +38,8 @@ import {
   Loader2,
   AlertCircle,
   Package,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   Select,
@@ -76,6 +77,7 @@ interface Product {
   name: string;
   price: number;
   stock: number;
+  image?: string;
   categoryId?: number;
   category?: {
     id: number;
@@ -163,6 +165,7 @@ export default function ProductsPage() {
     price: '',
     stock: '',
     categoryId: '',
+    image: '',
   });
   const [categoryForm, setCategoryForm] = useState({ name: '' });
 
@@ -231,6 +234,7 @@ export default function ProductsPage() {
         categoryId: productForm.categoryId
           ? Number(productForm.categoryId)
           : null,
+        image: productForm.image || null,
       };
       const response = await fetch(`${API_BASE_URL}/products`, {
         method: 'POST',
@@ -262,6 +266,7 @@ export default function ProductsPage() {
         categoryId: productForm.categoryId
           ? Number(productForm.categoryId)
           : null,
+        image: productForm.image || null,
       };
       const response = await fetch(
         `${API_BASE_URL}/products/${selectedProduct.id}`,
@@ -491,6 +496,7 @@ export default function ProductsPage() {
       price: product.price.toString(),
       stock: product.stock.toString(),
       categoryId: product.categoryId?.toString() || '',
+      image: product.image || '',
     });
     setIsEditProductOpen(true);
   };
@@ -514,7 +520,7 @@ export default function ProductsPage() {
 
   // **CORRECTED**: Resets camelCase form state
   const resetProductForm = () =>
-    setProductForm({ name: '', price: '', stock: '', categoryId: '' });
+    setProductForm({ name: '', price: '', stock: '', categoryId: '', image: '' });
   const resetCategoryForm = () => setCategoryForm({ name: '' });
 
   return (
@@ -754,8 +760,19 @@ export default function ProductsPage() {
                   <TableBody>
                     {products.map((product) => (
                       <TableRow key={product.id}>
-                        <TableCell className="font-medium">
-                          {product.name}
+                        <TableCell className="font-medium flex items-center gap-3">
+                          <div className="w-10 h-10 rounded border overflow-hidden bg-slate-50 flex items-center justify-center flex-shrink-0">
+                            {product.image ? (
+                              <img
+                                src={product.image}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <span>{product.name}</span>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
@@ -800,19 +817,30 @@ export default function ProductsPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {products.map((product) => (
-                    <Card key={product.id}>
-                      <CardHeader>
-                        <CardTitle>{product.name}</CardTitle>
-                        <Badge variant="outline">
+                    <Card key={product.id} className="overflow-hidden flex flex-col h-full">
+                      <div className="relative aspect-video w-full bg-slate-100 dark:bg-slate-900 border-b overflow-hidden flex items-center justify-center">
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Package className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+                        )}
+                      </div>
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
+                        <Badge variant="outline" className="w-fit">
                           {product.category?.name || 'Uncategorized'}
                         </Badge>
                       </CardHeader>
-                      <CardContent>
-                        <p className="font-semibold">
+                      <CardContent className="p-4 pt-0 flex-1">
+                        <p className="font-semibold text-green-600 dark:text-green-400">
                           Rp {product.price.toLocaleString('id-ID')}
                         </p>
                       </CardContent>
-                      <CardFooter className="flex justify-between">
+                      <CardFooter className="p-4 pt-0 flex justify-between">
                         <Badge
                           variant={
                             product.stock > 10 ? 'secondary' : 'destructive'
@@ -920,6 +948,67 @@ export default function ProductsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="space-y-2">
+                <Label>Product Photo</Label>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 rounded-md border border-dashed flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900 flex-shrink-0">
+                    {productForm.image ? (
+                      <img
+                        src={productForm.image}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="addProductImageInput"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setProductForm({
+                              ...productForm,
+                              image: event.target?.result as string,
+                            });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('addProductImageInput')?.click()}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Choose Image
+                      </Button>
+                      {productForm.image && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setProductForm({ ...productForm, image: '' })}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      PNG, JPG or WEBP. Square ratio recommended.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -988,6 +1077,67 @@ export default function ProductsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="space-y-2">
+                <Label>Product Photo</Label>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 rounded-md border border-dashed flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900 flex-shrink-0">
+                    {productForm.image ? (
+                      <img
+                        src={productForm.image}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="editProductImageInput"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setProductForm({
+                              ...productForm,
+                              image: event.target?.result as string,
+                            });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('editProductImageInput')?.click()}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Choose Image
+                      </Button>
+                      {productForm.image && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setProductForm({ ...productForm, image: '' })}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      PNG, JPG or WEBP. Square ratio recommended.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button

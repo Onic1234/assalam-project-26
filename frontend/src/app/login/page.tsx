@@ -111,6 +111,7 @@ export default function LoginPage() {
                       className="h-10 sm:h-12 lg:h-14 text-sm sm:text-base lg:text-lg"
                       placeholder="Enter your username"
                       required
+                      suppressHydrationWarning
                     />
                   </div>
                   <div className="space-y-2 sm:space-y-3 lg:space-y-4">
@@ -128,6 +129,7 @@ export default function LoginPage() {
                       className="h-10 sm:h-12 lg:h-14 text-sm sm:text-base lg:text-lg"
                       placeholder="Enter your password"
                       required
+                      suppressHydrationWarning
                     />
                   </div>
                   <Button

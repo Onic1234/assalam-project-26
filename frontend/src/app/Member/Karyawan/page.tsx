@@ -142,7 +142,8 @@ export default function KaryawanPage() {
     };
 
     try {
-      const response = await fetch("http://localhost:3001/ticketing/staff", {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${API_BASE_URL}/ticketing/staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

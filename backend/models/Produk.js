@@ -40,6 +40,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      image: {
+        type: DataTypes.TEXT('long'),
+        field: 'image',
+        allowNull: true,
+      },
     },
     {
       sequelize,

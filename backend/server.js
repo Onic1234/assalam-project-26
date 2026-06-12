@@ -17,8 +17,7 @@ const init = async () => {
     dbConfig.username,
     dbConfig.password,
     {
-      host: dbConfig.host,
-      dialect: dbConfig.dialect,
+      ...dbConfig,
       logging: console.log, // Tampilkan query SQL di konsol (opsional)
     }
   );

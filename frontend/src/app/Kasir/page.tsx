@@ -18,6 +18,10 @@ import {
   Package,
   Grid3X3,
   List,
+  Upload,
+  Image as ImageIcon,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -168,6 +172,13 @@ export default function Dashboard() {
     useState(false);
   const [isQrisModalOpen, setIsQrisModalOpen] = useState(false);
 
+  // Manual photo scanner states
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [isScanningImage, setIsScanningImage] = useState(false);
+  const [scanResultProduct, setScanResultProduct] = useState<Product | null>(null);
+  const [isScanResultDialogOpen, setIsScanResultDialogOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
   useEffect(() => {
     setIsClient(true);
     if (navigator.permissions) {
@@ -236,8 +247,8 @@ export default function Dashboard() {
           .filter((product: Product) => product.category)
           .map((product: Product) => product.category!)
           .filter(
-            (category, index, self) =>
-              index === self.findIndex((c) => c.id === category.id)
+            (category: Category, index: number, self: Category[]) =>
+              index === self.findIndex((c: Category) => c.id === category.id)
           );
         setCategories(uniqueCategories);
       } else {
@@ -421,7 +432,7 @@ export default function Dashboard() {
         setCameraPermission('granted');
       }
     } catch (error: any) {
-      console.error('Camera error:', error);
+      console.warn('Camera error:', error);
       let errorMessage = 'Tidak dapat mengakses kamera';
       if (error.name === 'NotAllowedError') {
         errorMessage = 'Izin kamera ditolak. Mohon izinkan akses kamera.';
@@ -719,13 +730,76 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if ((authFlow === 'face-id' || authFlow === 'dashboard') && isClient) {
+    if (authFlow === 'face-id' && isClient) {
       const timer = setTimeout(() => {
         startCamera();
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [authFlow, isClient, startCamera]);
+
+  // Handlers for manual photo scanner
+  const handlePhotoUpload = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setUploadedImage(dataUrl);
+      setScanResultProduct(null);
+
+      // Simple keyword matching based on filename
+      const fileName = file.name.toLowerCase();
+      const matched = products.find((p) => {
+        const prodName = p.name.toLowerCase();
+        // Match if filename contains product name or product name contains filename keywords
+        return fileName.includes(prodName) || 
+               prodName.split(' ').some(word => word.length > 2 && fileName.includes(word));
+      });
+
+      if (matched) {
+        setScanResultProduct(matched);
+      }
+    };
+    reader.readAsDataURL(file);
+  }, [products]);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePhotoUpload(file);
+    }
+  }, [handlePhotoUpload]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      handlePhotoUpload(file);
+    }
+  }, [handlePhotoUpload]);
+
+  const startPhotoScan = useCallback(() => {
+    if (!uploadedImage) return;
+    setIsScanningImage(true);
+    setTimeout(() => {
+      setIsScanningImage(false);
+      setIsScanResultDialogOpen(true);
+    }, 2000);
+  }, [uploadedImage]);
+
+  const handleRemovePhoto = useCallback(() => {
+    setUploadedImage(null);
+    setScanResultProduct(null);
+  }, []);
 
   useEffect(() => {
     if (authenticatedUser) {
@@ -1184,6 +1258,124 @@ export default function Dashboard() {
       </DialogContent>
     </Dialog>
   );
+
+  const renderScanResultModal = () => (
+    <Dialog open={isScanResultDialogOpen} onOpenChange={setIsScanResultDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <QrCode className="h-6 w-6 text-green-500" />
+            Hasil Pemindaian Foto
+          </DialogTitle>
+          <DialogDescription>
+            Tinjau dan sesuaikan produk yang berhasil diidentifikasi.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-3">
+          {uploadedImage && (
+            <div className="relative h-40 bg-slate-900 rounded-md overflow-hidden flex items-center justify-center border border-muted">
+              <img
+                src={uploadedImage}
+                alt="Scanned product preview"
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+          )}
+
+          {scanResultProduct ? (
+            <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/50 rounded-lg flex items-center gap-4">
+              <div className="w-16 h-16 rounded-md overflow-hidden bg-white border flex-shrink-0">
+                <Image
+                  src={scanResultProduct.image || '/placeholder.svg?height=60&width=60'}
+                  alt={scanResultProduct.name}
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Badge variant="default" className="bg-green-600 hover:bg-green-600">Terdeteksi Otomatis</Badge>
+                  {scanResultProduct.category && (
+                    <Badge variant="outline" className="text-xs">{scanResultProduct.category.name}</Badge>
+                  )}
+                </div>
+                <h4 className="font-semibold text-base text-slate-900 dark:text-white truncate mt-1">
+                  {scanResultProduct.name}
+                </h4>
+                <p className="font-bold text-green-600 text-lg">
+                  Rp {scanResultProduct.price.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-lg flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5">
+                <Package className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-amber-800 dark:text-amber-300">
+                  Produk Tidak Langsung Dikenali
+                </h4>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  Silakan pilih produk yang sesuai secara manual dari pilihan di bawah untuk ditambahkan.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="matchedProductSelect" className="text-sm font-medium">
+              {scanResultProduct ? 'Sesuaikan Produk (Jika Salah):' : 'Pilih Produk Cocok:'}
+            </Label>
+            <div className="relative">
+              <select
+                id="matchedProductSelect"
+                className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={scanResultProduct?.id || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const found = products.find(p => p.id === Number(val));
+                  setScanResultProduct(found || null);
+                }}
+              >
+                <option value="">-- Pilih Produk --</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} - Rp {p.price.toLocaleString()} (Stok: {p.stock})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => setIsScanResultDialogOpen(false)}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={() => {
+              if (scanResultProduct) {
+                addProductToCart(scanResultProduct);
+                setIsScanResultDialogOpen(false);
+                setUploadedImage(null);
+                setScanResultProduct(null);
+              }
+            }}
+            disabled={!scanResultProduct}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Tambahkan ke Keranjang
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
   const renderDashboard = () => (
     <div className="h-screen w-full flex flex-col overflow-hidden">
       <header className="border-b bg-white shadow-sm">
@@ -1219,41 +1411,93 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col pt-2">
-                <div className="relative flex-1 bg-slate-900 rounded-md overflow-hidden mb-6">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
-                      display: isCameraActive && videoReady ? 'block' : 'none',
-                    }}
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ display: 'none' }}
-                  />
-                  {(!isCameraActive || !videoReady) && (
-                    <div className="absolute inset-0 w-full h-full flex items-center justify-center text-white">
-                      <div className="text-center p-8">
-                        <CameraOff className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                        <p className="text-lg mb-2">Kamera Tidak Aktif</p>
-                      </div>
+                <div 
+                  className={`relative flex-1 rounded-md border-2 border-dashed overflow-hidden mb-6 transition-colors flex flex-col items-center justify-center min-h-[300px] ${
+                    isDragOver 
+                      ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' 
+                      : uploadedImage 
+                        ? 'border-muted bg-muted/20' 
+                        : 'border-muted-foreground/20 hover:border-green-500/50 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {uploadedImage ? (
+                    <div className="relative w-full h-full flex items-center justify-center bg-slate-950 p-2">
+                      <img 
+                        src={uploadedImage} 
+                        alt="Preview Foto Produk" 
+                        className="max-w-full max-h-full object-contain rounded"
+                      />
+                      
+                      {isScanningImage && (
+                        <>
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+                          <div className="animate-laser" />
+                          <div className="absolute inset-0 flex items-center justify-center text-white">
+                            <div className="bg-slate-900/80 px-4 py-2 rounded-full flex items-center gap-2 shadow-lg border border-white/10">
+                              <Loader2 className="h-4 w-4 animate-spin text-green-400" />
+                              <span className="text-sm font-medium">Memindai Foto...</span>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
+                  ) : (
+                    <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleFileChange}
+                        disabled={isLoading}
+                      />
+                      <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4 text-green-600 dark:text-green-400 transition-transform duration-300 hover:scale-105">
+                        <Upload className="h-8 w-8" />
+                      </div>
+                      <h3 className="font-semibold text-lg mb-1">Unggah Foto Produk</h3>
+                      <p className="text-sm text-muted-foreground max-w-xs mb-3">
+                        Seret & lepas foto produk di sini, atau klik untuk memilih file dari perangkat Anda.
+                      </p>
+                      <Badge variant="secondary" className="px-2.5 py-1 text-xs">
+                        Mendukung gambar JPG, PNG, WEBP
+                      </Badge>
+                    </label>
                   )}
                 </div>
+
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsProductModalOpen(true)}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Pilih Manual
-                  </Button>
+                  {uploadedImage ? (
+                    <>
+                      <Button
+                        variant="default"
+                        onClick={startPhotoScan}
+                        disabled={isScanningImage || isLoading}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <QrCode className="mr-2 h-4 w-4" />
+                        {isScanningImage ? 'Memindai...' : 'Pindai Foto'}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleRemovePhoto}
+                        disabled={isScanningImage || isLoading}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsProductModalOpen(true)}
+                      disabled={isLoading}
+                      className="flex-1"
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Pilih Manual
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1483,6 +1727,7 @@ export default function Dashboard() {
       {/* 👇 Add these two lines */}
       {renderPaymentMethodModal()}
       {renderQrisModal()}
+      {renderScanResultModal()}
     </div>
   );
 }

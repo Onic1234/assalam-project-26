@@ -217,7 +217,7 @@ export default function HomePage() {
         {/* Additional Info */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500 mb-4">
-            Fasilitas: Kolam Dewasa • Kolam Anak • Kamar Mandi • Parkir • Gazebo
+            Fasilitas: Kolam Olympic • Shower • Parkir • Meeting Room • Cafe • Workout Space 
           </p>
           <p className="text-xs text-gray-400">
             Tiket berlaku untuk hari pembelian • Tidak dapat dikembalikan

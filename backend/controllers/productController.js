@@ -17,7 +17,7 @@ const produkController = {
   // 1. Create Product
   createProduct: async (request, h) => {
     try {
-      const { name, price, stock, categoryId } = request.payload;
+      const { name, price, stock, categoryId, image } = request.payload;
 
       if (categoryId) {
         const category = await Category.findByPk(categoryId);
@@ -35,6 +35,7 @@ const produkController = {
         price: parseFloat(price),
         stock: parseInt(stock) || 0,
         categoryId: categoryId || null,
+        image: image || null,
       });
 
       const productWithCategory = await Produk.findByPk(newProduct.id, {
@@ -62,7 +63,7 @@ const produkController = {
   updateProduct: async (request, h) => {
     try {
       const { id } = request.params;
-      const { name, price, stock, categoryId } = request.payload;
+      const { name, price, stock, categoryId, image } = request.payload;
 
       const product = await Produk.findByPk(id);
       if (!product) throw Boom.notFound("Produk tidak ditemukan");
@@ -85,6 +86,7 @@ const produkController = {
       if (price !== undefined) updateData.price = parseFloat(price);
       if (stock !== undefined) updateData.stock = parseInt(stock);
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
+      if (image !== undefined) updateData.image = image;
 
       await product.update(updateData);
 

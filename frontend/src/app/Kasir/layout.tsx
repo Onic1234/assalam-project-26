@@ -25,11 +25,8 @@ export default function KasirLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
-        <Toaster />
-      </body>
-    </html>
+    <div className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}>
+      {children}
+    </div>
   )
 }
