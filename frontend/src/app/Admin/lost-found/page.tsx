@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,7 +47,9 @@ import {
   User as UserIcon,
   HelpCircle,
   X,
-  Check,
+  Camera,
+  Clock,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -94,11 +96,17 @@ interface ApiResponse<T> {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-const getLocalDatetimeString = () => {
+const getTodayDateString = () => {
   const date = new Date();
   const tzoffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16);
+  return new Date(date.getTime() - tzoffset).toISOString().split('T')[0];
 };
+
+const getCurrentHourString = () => String(new Date().getHours()).padStart(2, '0');
+const getCurrentMinuteString = () => String(new Date().getMinutes()).padStart(2, '0');
+
+const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const minuteOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 const formatDateTime = (dateStr: string | undefined) => {
   if (!dateStr) return '-';
@@ -115,14 +123,22 @@ const formatDateTime = (dateStr: string | undefined) => {
   }
 };
 
-const formatForDatetimeLocal = (dateStr: string | undefined) => {
-  if (!dateStr) return '';
+const parseDateAndTime = (isoStr: string | undefined) => {
+  if (!isoStr) return { date: '', hour: '00', minute: '00' };
   try {
-    const date = new Date(dateStr);
-    const tzoffset = date.getTimezoneOffset() * 60000;
-    return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16);
+    const dateObj = new Date(isoStr);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const hour = String(dateObj.getHours()).padStart(2, '0');
+    const minute = String(dateObj.getMinutes()).padStart(2, '0');
+    return {
+      date: `${year}-${month}-${day}`,
+      hour,
+      minute
+    };
   } catch {
-    return '';
+    return { date: '', hour: '00', minute: '00' };
   }
 };
 
@@ -144,6 +160,13 @@ export default function LostFoundPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
 
+  // Camera states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraMode, setCameraMode] = useState<'add' | 'edit'>('add');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   // Selected item states
   const [selectedItem, setSelectedItem] = useState<LostItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<LostItem | null>(null);
@@ -153,7 +176,9 @@ export default function LostFoundPage() {
   const [addForm, setAddForm] = useState({
     nama_barang: '',
     deskripsi: '',
-    tanggal_ditemukan: getLocalDatetimeString(),
+    tanggal_ditemukan: getTodayDateString(),
+    jam_ditemukan: getCurrentHourString(),
+    menit_ditemukan: getCurrentMinuteString(),
     lokasi_ditemukan: '',
     foto_barang: '',
   });
@@ -162,18 +187,24 @@ export default function LostFoundPage() {
     nama_barang: '',
     deskripsi: '',
     tanggal_ditemukan: '',
+    jam_ditemukan: '00',
+    menit_ditemukan: '00',
     lokasi_ditemukan: '',
     status: 'Lost' as 'Lost' | 'Claimed',
     foto_barang: '',
     nama_pemilik: '',
     nomor_telepon_pemilik: '',
     tanggal_diambil: '',
+    jam_diambil: '00',
+    menit_diambil: '00',
   });
 
   const [claimForm, setClaimForm] = useState({
     nama_pemilik: '',
     nomor_telepon_pemilik: '',
-    tanggal_diambil: getLocalDatetimeString(),
+    tanggal_diambil: getTodayDateString(),
+    jam_diambil: getCurrentHourString(),
+    menit_diambil: getCurrentMinuteString(),
   });
 
   // Headers config
@@ -215,6 +246,78 @@ export default function LostFoundPage() {
     fetchItems();
   }, []);
 
+  // Camera functions
+  const startCameraStream = async (mode: 'add' | 'edit') => {
+    setCameraMode(mode);
+    setCameraError(null);
+    setIsCameraActive(true);
+
+    // Wait for dialog rendering to resolve ref
+    setTimeout(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment', // back camera by default on mobile
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          streamRef.current = stream;
+        }
+      } catch (err: any) {
+        console.error('Camera access error:', err);
+        setCameraError('Tidak dapat mengakses kamera. Pastikan browser Anda memiliki izin.');
+      }
+    }, 150);
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+    setCameraError(null);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL('image/jpeg', 0.85); // 85% compression
+
+        if (cameraMode === 'add') {
+          setAddForm({ ...addForm, foto_barang: base64 });
+        } else {
+          setEditForm({ ...editForm, foto_barang: base64 });
+        }
+      }
+      stopCameraStream();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      // Cleanup camera stream on unmount
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
   const handleAddItem = async () => {
     if (!addForm.nama_barang.trim()) {
       toast.error('Nama barang wajib diisi');
@@ -227,10 +330,18 @@ export default function LostFoundPage() {
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        nama_barang: addForm.nama_barang,
+        deskripsi: addForm.deskripsi,
+        tanggal_ditemukan: `${addForm.tanggal_ditemukan}T${addForm.jam_ditemukan}:${addForm.menit_ditemukan}:00`,
+        lokasi_ditemukan: addForm.lokasi_ditemukan,
+        foto_barang: addForm.foto_barang,
+      };
+
       const response = await fetch(`${API_BASE_URL}/lost-items`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(addForm),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok) throw data;
@@ -240,7 +351,9 @@ export default function LostFoundPage() {
       setAddForm({
         nama_barang: '',
         deskripsi: '',
-        tanggal_ditemukan: getLocalDatetimeString(),
+        tanggal_ditemukan: getTodayDateString(),
+        jam_ditemukan: getCurrentHourString(),
+        menit_ditemukan: getCurrentMinuteString(),
         lokasi_ditemukan: '',
         foto_barang: '',
       });
@@ -265,10 +378,24 @@ export default function LostFoundPage() {
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        nama_barang: editForm.nama_barang,
+        deskripsi: editForm.deskripsi,
+        tanggal_ditemukan: `${editForm.tanggal_ditemukan}T${editForm.jam_ditemukan}:${editForm.menit_ditemukan}:00`,
+        lokasi_ditemukan: editForm.lokasi_ditemukan,
+        status: editForm.status,
+        foto_barang: editForm.foto_barang,
+        nama_pemilik: editForm.nama_pemilik,
+        nomor_telepon_pemilik: editForm.nomor_telepon_pemilik,
+        tanggal_diambil: editForm.status === 'Claimed' && editForm.tanggal_diambil
+          ? `${editForm.tanggal_diambil}T${editForm.jam_diambil}:${editForm.menit_diambil}:00`
+          : null,
+      };
+
       const response = await fetch(`${API_BASE_URL}/lost-items/${selectedItem.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok) throw data;
@@ -300,7 +427,7 @@ export default function LostFoundPage() {
         status: 'Claimed',
         nama_pemilik: claimForm.nama_pemilik,
         nomor_telepon_pemilik: claimForm.nomor_telepon_pemilik,
-        tanggal_diambil: claimForm.tanggal_diambil,
+        tanggal_diambil: `${claimForm.tanggal_diambil}T${claimForm.jam_diambil}:${claimForm.menit_diambil}:00`,
       };
 
       const response = await fetch(`${API_BASE_URL}/lost-items/${selectedItem.id}`, {
@@ -316,7 +443,9 @@ export default function LostFoundPage() {
       setClaimForm({
         nama_pemilik: '',
         nomor_telepon_pemilik: '',
-        tanggal_diambil: getLocalDatetimeString(),
+        tanggal_diambil: getTodayDateString(),
+        jam_diambil: getCurrentHourString(),
+        menit_diambil: getCurrentMinuteString(),
       });
       fetchItems();
     } catch (err) {
@@ -348,6 +477,66 @@ export default function LostFoundPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    if (filteredItems.length === 0) {
+      toast.error('Tidak ada data yang dapat diekspor');
+      return;
+    }
+
+    const headers = [
+      'No',
+      'Nama Barang',
+      'Deskripsi',
+      'Tanggal Ditemukan',
+      'Lokasi Ditemukan',
+      'Status',
+      'Nama Penerima',
+      'No Telepon Penerima',
+      'Tanggal Diambil'
+    ];
+
+    const rows = filteredItems.map((item, index) => [
+      String(index + 1),
+      item.nama_barang,
+      item.deskripsi || '',
+      formatDateTime(item.tanggal_ditemukan),
+      item.lokasi_ditemukan || '',
+      item.status === 'Lost' ? 'Belum Diambil' : 'Sudah Diambil',
+      item.nama_pemilik || '',
+      item.nomor_telepon_pemilik || '',
+      item.status === 'Claimed' ? formatDateTime(item.tanggal_diambil) : ''
+    ]);
+
+    // Format CSV using semicolon separation
+    // Excel supports "sep=;" at the top of the file to auto-detect semicolon delimiter
+    const csvContent = 
+      '\uFEFF' + // UTF-8 BOM
+      'sep=;\r\n' + 
+      headers.join(';') + '\r\n' + 
+      rows.map(row => 
+        row.map(val => {
+          // Escape quotes and wrap with double quotes
+          const escaped = String(val).replace(/"/g, '""');
+          return `"${escaped}"`;
+        }).join(';')
+      ).join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    
+    // Generate clean filename
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `laporan_barang_temuan_${dateStr}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success('Laporan barang temuan berhasil diekspor');
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mode: 'add' | 'edit') => {
     const file = e.target.files?.[0];
     if (file) {
@@ -370,16 +559,22 @@ export default function LostFoundPage() {
 
   const openEditDialog = (item: LostItem) => {
     setSelectedItem(item);
+    const found = parseDateAndTime(item.tanggal_ditemukan);
+    const claimed = parseDateAndTime(item.tanggal_diambil);
     setEditForm({
       nama_barang: item.nama_barang,
       deskripsi: item.deskripsi || '',
-      tanggal_ditemukan: formatForDatetimeLocal(item.tanggal_ditemukan),
+      tanggal_ditemukan: found.date,
+      jam_ditemukan: found.hour,
+      menit_ditemukan: found.minute,
       lokasi_ditemukan: item.lokasi_ditemukan || '',
       status: item.status,
       foto_barang: item.foto_barang || '',
       nama_pemilik: item.nama_pemilik || '',
       nomor_telepon_pemilik: item.nomor_telepon_pemilik || '',
-      tanggal_diambil: formatForDatetimeLocal(item.tanggal_diambil),
+      tanggal_diambil: claimed.date || getTodayDateString(),
+      jam_diambil: claimed.hour || '00',
+      menit_diambil: claimed.minute || '00',
     });
     setIsEditOpen(true);
   };
@@ -486,6 +681,14 @@ export default function LostFoundPage() {
               <Button onClick={() => setIsAddOpen(true)} className="h-9">
                 <Plus className="mr-2 h-4 w-4" />
                 Catat Barang Baru
+              </Button>
+              <Button
+                onClick={handleExportExcel}
+                variant="outline"
+                className="h-9 border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/20"
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export Excel
               </Button>
             </div>
 
@@ -789,16 +992,39 @@ export default function LostFoundPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="addDate">Tanggal & Waktu Ditemukan <span className="text-red-500">*</span></Label>
+                <div className="space-y-2 col-span-1">
+                  <Label htmlFor="addDate">Tanggal Ditemukan <span className="text-red-500">*</span></Label>
                   <Input
                     id="addDate"
-                    type="datetime-local"
+                    type="date"
                     value={addForm.tanggal_ditemukan}
                     onChange={(e) => setAddForm({ ...addForm, tanggal_ditemukan: e.target.value })}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-1">
+                  <Label>Waktu Ditemukan <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center justify-center gap-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                    <Clock className="h-4 w-4 text-muted-foreground mr-1 flex-shrink-0" />
+                    <select
+                      value={addForm.jam_ditemukan}
+                      onChange={(e) => setAddForm({ ...addForm, jam_ditemukan: e.target.value })}
+                      className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                    >
+                      {hourOptions.map(h => <option key={h} value={h} className="bg-background text-foreground">{h}</option>)}
+                    </select>
+                    <span className="text-muted-foreground font-semibold px-0.5">:</span>
+                    <select
+                      value={addForm.menit_ditemukan}
+                      onChange={(e) => setAddForm({ ...addForm, menit_ditemukan: e.target.value })}
+                      className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                    >
+                      {minuteOptions.map(m => <option key={m} value={m} className="bg-background text-foreground">{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 col-span-2">
                   <Label htmlFor="addLocation">Lokasi Ditemukan</Label>
                   <Input
                     id="addLocation"
@@ -820,7 +1046,7 @@ export default function LostFoundPage() {
                 />
               </div>
 
-              {/* Drag and drop image upload */}
+              {/* Foto Barang Upload/Camera */}
               <div className="space-y-2">
                 <Label>Foto Barang</Label>
                 <div className="flex items-center gap-4">
@@ -843,7 +1069,7 @@ export default function LostFoundPage() {
                       className="hidden"
                       onChange={(e) => handleFileChange(e, 'add')}
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -851,7 +1077,16 @@ export default function LostFoundPage() {
                         onClick={() => document.getElementById('addLostImageInput')?.click()}
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        Pilih Foto
+                        Pilih File
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startCameraStream('add')}
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Ambil Foto
                       </Button>
                       {addForm.foto_barang && (
                         <Button
@@ -865,7 +1100,7 @@ export default function LostFoundPage() {
                       )}
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      Format PNG, JPG atau WEBP. Maksimal 5MB.
+                      Pilih berkas gambar atau ambil foto menggunakan kamera.
                     </p>
                   </div>
                 </div>
@@ -900,16 +1135,39 @@ export default function LostFoundPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="editDate">Tanggal & Waktu Ditemukan <span className="text-red-500">*</span></Label>
+                <div className="space-y-2 col-span-1">
+                  <Label htmlFor="editDate">Tanggal Ditemukan <span className="text-red-500">*</span></Label>
                   <Input
                     id="editDate"
-                    type="datetime-local"
+                    type="date"
                     value={editForm.tanggal_ditemukan}
                     onChange={(e) => setEditForm({ ...editForm, tanggal_ditemukan: e.target.value })}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-1">
+                  <Label>Waktu Ditemukan <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center justify-center gap-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                    <Clock className="h-4 w-4 text-muted-foreground mr-1 flex-shrink-0" />
+                    <select
+                      value={editForm.jam_ditemukan}
+                      onChange={(e) => setEditForm({ ...editForm, jam_ditemukan: e.target.value })}
+                      className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                    >
+                      {hourOptions.map(h => <option key={h} value={h} className="bg-background text-foreground">{h}</option>)}
+                    </select>
+                    <span className="text-muted-foreground font-semibold px-0.5">:</span>
+                    <select
+                      value={editForm.menit_ditemukan}
+                      onChange={(e) => setEditForm({ ...editForm, menit_ditemukan: e.target.value })}
+                      className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                    >
+                      {minuteOptions.map(m => <option key={m} value={m} className="bg-background text-foreground">{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 col-span-2">
                   <Label htmlFor="editLocation">Lokasi Ditemukan</Label>
                   <Input
                     id="editLocation"
@@ -972,7 +1230,7 @@ export default function LostFoundPage() {
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
+                    <div className="space-y-2 col-span-2">
                       <Label htmlFor="editPhone">Nomor Telepon <span className="text-red-500">*</span></Label>
                       <Input
                         id="editPhone"
@@ -981,19 +1239,42 @@ export default function LostFoundPage() {
                         onChange={(e) => setEditForm({ ...editForm, nomor_telepon_pemilik: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="editClaimDate">Tanggal & Waktu Diambil <span className="text-red-500">*</span></Label>
+                    <div className="space-y-2 col-span-1">
+                      <Label htmlFor="editClaimDate">Tanggal Diambil <span className="text-red-500">*</span></Label>
                       <Input
                         id="editClaimDate"
-                        type="datetime-local"
+                        type="date"
                         value={editForm.tanggal_diambil}
                         onChange={(e) => setEditForm({ ...editForm, tanggal_diambil: e.target.value })}
+                        className="w-full"
                       />
+                    </div>
+                    <div className="space-y-2 col-span-1">
+                      <Label>Waktu Diambil <span className="text-red-500">*</span></Label>
+                      <div className="flex items-center justify-center gap-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                        <Clock className="h-4 w-4 text-muted-foreground mr-1 flex-shrink-0" />
+                        <select
+                          value={editForm.jam_diambil}
+                          onChange={(e) => setEditForm({ ...editForm, jam_diambil: e.target.value })}
+                          className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                        >
+                          {hourOptions.map(h => <option key={h} value={h} className="bg-background text-foreground">{h}</option>)}
+                        </select>
+                        <span className="text-muted-foreground font-semibold px-0.5">:</span>
+                        <select
+                          value={editForm.menit_diambil}
+                          onChange={(e) => setEditForm({ ...editForm, menit_diambil: e.target.value })}
+                          className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                        >
+                          {minuteOptions.map(m => <option key={m} value={m} className="bg-background text-foreground">{m}</option>)}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* Foto Barang Edit */}
               <div className="space-y-2">
                 <Label>Foto Barang</Label>
                 <div className="flex items-center gap-4">
@@ -1016,7 +1297,7 @@ export default function LostFoundPage() {
                       className="hidden"
                       onChange={(e) => handleFileChange(e, 'edit')}
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -1024,7 +1305,16 @@ export default function LostFoundPage() {
                         onClick={() => document.getElementById('editLostImageInput')?.click()}
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        Ubah Foto
+                        Ubah File
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startCameraStream('edit')}
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Ambil Foto
                       </Button>
                       {editForm.foto_barang && (
                         <Button
@@ -1077,7 +1367,7 @@ export default function LostFoundPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2">
                   <Label htmlFor="claimPhone">Nomor Telepon Penerima <span className="text-red-500">*</span></Label>
                   <Input
                     id="claimPhone"
@@ -1086,14 +1376,36 @@ export default function LostFoundPage() {
                     onChange={(e) => setClaimForm({ ...claimForm, nomor_telepon_pemilik: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="claimDate">Tanggal & Waktu Diambil <span className="text-red-500">*</span></Label>
+                <div className="space-y-2 col-span-1">
+                  <Label htmlFor="claimDate">Tanggal Diambil <span className="text-red-500">*</span></Label>
                   <Input
                     id="claimDate"
-                    type="datetime-local"
+                    type="date"
                     value={claimForm.tanggal_diambil}
                     onChange={(e) => setClaimForm({ ...claimForm, tanggal_diambil: e.target.value })}
+                    className="w-full"
                   />
+                </div>
+                <div className="space-y-2 col-span-1">
+                  <Label>Waktu Diambil <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center justify-center gap-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                    <Clock className="h-4 w-4 text-muted-foreground mr-1 flex-shrink-0" />
+                    <select
+                      value={claimForm.jam_diambil}
+                      onChange={(e) => setClaimForm({ ...claimForm, jam_diambil: e.target.value })}
+                      className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                    >
+                      {hourOptions.map(h => <option key={h} value={h} className="bg-background text-foreground">{h}</option>)}
+                    </select>
+                    <span className="text-muted-foreground font-semibold px-0.5">:</span>
+                    <select
+                      value={claimForm.menit_diambil}
+                      onChange={(e) => setClaimForm({ ...claimForm, menit_diambil: e.target.value })}
+                      className="bg-transparent text-sm outline-none border-none text-center appearance-none cursor-pointer w-8 focus:ring-0 p-0 m-0 [background-image:none] text-foreground font-medium"
+                    >
+                      {minuteOptions.map(m => <option key={m} value={m} className="bg-background text-foreground">{m}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1146,6 +1458,47 @@ export default function LostFoundPage() {
                 className="max-h-[80vh] w-auto max-w-full rounded-md object-contain shadow-2xl bg-slate-900"
               />
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Camera Capture Dialog */}
+        <Dialog open={isCameraActive} onOpenChange={(open) => {
+          if (!open) stopCameraStream();
+        }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5 text-red-500" />
+                Ambil Foto Barang
+              </DialogTitle>
+            </DialogHeader>
+            <div className="relative aspect-video w-full rounded-md border overflow-hidden bg-black flex items-center justify-center">
+              {cameraError ? (
+                <div className="p-4 text-center text-xs text-red-400 flex flex-col items-center gap-2">
+                  <AlertCircle className="h-8 w-8" />
+                  <p>{cameraError}</p>
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
+            <DialogFooter className="flex justify-between sm:justify-between items-center w-full">
+              <Button variant="outline" onClick={stopCameraStream}>
+                Batal
+              </Button>
+              {!cameraError && (
+                <Button onClick={capturePhoto} className="bg-red-500 hover:bg-red-600 text-white">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Jepret Foto
+                </Button>
+              )}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </SidebarInset>

@@ -75,6 +75,11 @@ const attendanceMenuItems = [
     icon: Ticket,
   },
   {
+    title: 'Lost and Found',
+    url: '/Admin/lost-found',
+    icon: Archive,
+  },
+  {
     title: 'Settings',
     url: '/Admin/settings',
     icon: Settings,
@@ -121,11 +126,6 @@ const adminNavData = [
     title: 'Top-up',
     url: '/Admin/topup',
     icon: CreditCard,
-  },
-  {
-    title: 'Lost and Found',
-    url: '/Admin/lost-found',
-    icon: Archive,
   },
   {
     title: 'Report',
