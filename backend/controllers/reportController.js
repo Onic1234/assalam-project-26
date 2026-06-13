@@ -970,12 +970,15 @@ const reportController = {
       transactionHeaderRow.font = { bold: true };
 
       transactions.forEach((t) => {
+        const localDate = t.createdAt
+          ? new Date(new Date(t.createdAt).getTime() + 7 * 60 * 60 * 1000)
+          : null;
         transactionSheet.addRow([
           t.id,
           t.santri?.nama_santri || t.kasir?.username || "N/A",
           t.payment_method,
           t.total_amount,
-          t.createdAt,
+          localDate,
         ]);
       });
 

@@ -1,3 +1,4 @@
+process.env.TZ = "Asia/Jakarta"; // Set timezone globally to Asia/Jakarta
 require("dotenv").config(); // Load environment variables dari .env
 const Hapi = require("@hapi/hapi");
 const Sequelize = require("sequelize");

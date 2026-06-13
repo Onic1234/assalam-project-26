@@ -333,9 +333,12 @@ exports.exportSalesToExcel = async (request, h) => {
 
       // Menambahkan data ke baris
       data.forEach((sale) => {
+        const adjustedDate = sale.Tanggal_Kunjungan
+          ? new Date(new Date(sale.Tanggal_Kunjungan).getTime() + 7 * 60 * 60 * 1000)
+          : null;
         sheet.addRow({
           ...sale,
-          Tanggal_Kunjungan: new Date(sale.Tanggal_Kunjungan),
+          Tanggal_Kunjungan: adjustedDate,
           Metode_Pembayaran: sale.Metode_Pembayaran || "Tunai", // Default jika null
         });
       });
