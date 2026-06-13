@@ -51,7 +51,7 @@ exports.ticketForReguler = async (request, h) => {
   const { Nama, No_Telepon, Kuantitas, Metode_Pembayaran } = request.payload;
   try {
     const [customer] = await Reguler.findOrCreate({
-      where: { No_Telepon },
+      where: { No_Telepon, Nama },
       defaults: { Nama, No_Telepon },
     });
     const sale = await createSale(
