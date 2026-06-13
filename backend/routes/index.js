@@ -20,6 +20,9 @@ const ticketingRoutes = require("./ticketingRoutes"); // Rute baru
 // --- Rute baru untuk Setting ---
 const settingRoutes = require("./settingRoutes"); // Rute baru untuk pengaturan QRIS
 
+// --- Rute baru untuk Lost & Found ---
+const lostItemRoutes = require("./lostItemRoutes");
+
 // Menggabungkan semua rute ke dalam satu array
 const routes = [
   // Rute yang sudah ada
@@ -37,6 +40,7 @@ const routes = [
   ...customerRoutes,
   ...ticketingRoutes,
   ...settingRoutes, // Rute baru untuk pengaturan QRIS
+  ...lostItemRoutes, // Rute baru untuk Lost & Found
 ];
 
 module.exports = routes;

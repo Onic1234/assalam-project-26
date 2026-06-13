@@ -9,6 +9,7 @@ import {
   CreditCard,
   Ticket,
   Settings,
+  Archive,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -97,6 +98,11 @@ const kasirNavData = [
     url: '/Admin/topup',
     icon: CreditCard,
   },
+  {
+    title: 'Lost and Found',
+    url: '/Admin/lost-found',
+    icon: Archive,
+  },
 ];
 
 // Navigation data for admin (logged-in)
@@ -115,6 +121,11 @@ const adminNavData = [
     title: 'Top-up',
     url: '/Admin/topup',
     icon: CreditCard,
+  },
+  {
+    title: 'Lost and Found',
+    url: '/Admin/lost-found',
+    icon: Archive,
   },
   {
     title: 'Report',
