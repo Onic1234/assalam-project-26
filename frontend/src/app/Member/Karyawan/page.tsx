@@ -32,6 +32,8 @@ import {
 import Image from "next/image";
 import { QrisDisplay } from "@/components/qris-display"; // Sesuaikan path jika perlu
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 export default function KaryawanPage() {
   const router = useRouter();
   const [ticketCount, setTicketCount] = useState(1);
@@ -52,9 +54,6 @@ export default function KaryawanPage() {
   const [priceLoading, setPriceLoading] = useState(true);
 
   useEffect(() => {
-    const API_BASE_URL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
     const fetchTicketPrice = async () => {
       try {
         setPriceLoading(true);
@@ -142,7 +141,7 @@ export default function KaryawanPage() {
     };
 
     try {
-      const response = await fetch("http://localhost:3001/ticketing/staff", {
+      const response = await fetch(`${API_BASE_URL}/ticketing/staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -100,6 +100,79 @@ const getCellValue = (val) => {
   return val;
 };
 
+const parseIndonesianDate = (str) => {
+  if (!str || typeof str !== "string") return null;
+
+  let cleanStr = str
+    .replace(/(senin|selasa|rabu|kamis|jum(?:')?at|sabtu|minggu|ahad)/gi, "")
+    .replace(/,/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleanStr) return null;
+
+  const months = {
+    januari: 0, jan: 0,
+    februari: 1, feb: 1,
+    maret: 2, mar: 2,
+    april: 3, apr: 3,
+    mei: 4,
+    juni: 5, jun: 5,
+    juli: 6, jul: 6,
+    agustus: 7, agt: 7, ags: 7,
+    september: 8, sep: 8,
+    oktober: 9, okt: 9,
+    november: 10, nov: 10,
+    desember: 11, des: 11
+  };
+
+  const parts = cleanStr.split(/[\s-/]+/);
+  if (parts.length === 3) {
+    const p0 = parts[0].toLowerCase();
+    const p1 = parts[1].toLowerCase();
+    const p2 = parts[2].toLowerCase();
+
+    let day = null;
+    let month = null;
+    let year = null;
+
+    if (months[p0] !== undefined) {
+      month = months[p0];
+      day = parseInt(p1, 10);
+      year = parseInt(p2, 10);
+    } else if (months[p1] !== undefined) {
+      day = parseInt(p0, 10);
+      month = months[p1];
+      year = parseInt(p2, 10);
+    } else {
+      if (p2.length === 4) {
+        day = parseInt(p0, 10);
+        month = parseInt(p1, 10) - 1;
+        year = parseInt(p2, 10);
+      } else if (p0.length === 4) {
+        year = parseInt(p0, 10);
+        month = parseInt(p1, 10) - 1;
+        day = parseInt(p2, 10);
+      }
+    }
+
+    if (day !== null && month !== null && year !== null && !isNaN(day) && !isNaN(month) && !isNaN(year)) {
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  return null;
+};
+
+
 const importController = {
   /**
    * Fungsi generik untuk mengimpor data dari Excel berdasarkan kategori.
@@ -257,18 +330,11 @@ const importController = {
           if (mappedData[dateField]) {
             const rawDate = mappedData[dateField];
             if (typeof rawDate === "string") {
-              const parts = rawDate.split(/[-/ ]/);
-              if (parts.length >= 3) {
-                if (parts[2].length === 4) {
-                  mappedData[dateField] = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                } else if (parts[0].length === 4) {
-                  mappedData[dateField] = new Date(rawDate);
-                }
+              const parsedDate = parseIndonesianDate(rawDate);
+              if (parsedDate) {
+                mappedData[dateField] = parsedDate;
               } else {
-                const parsed = new Date(rawDate);
-                if (!isNaN(parsed.getTime())) {
-                  mappedData[dateField] = parsed;
-                }
+                delete mappedData[dateField];
               }
             } else if (rawDate instanceof Date) {
               if (isNaN(rawDate.getTime())) {

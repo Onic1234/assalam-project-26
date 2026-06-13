@@ -183,9 +183,9 @@ export default function HomePage() {
           onClick={handleMemberAccess}
         >
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 flex items-center justify-center">
+                <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
                   <Image
                     src="/icons/Member Umum.png"
                     alt="Member"
@@ -195,10 +195,10 @@ export default function HomePage() {
                   />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Apakah Anda PPMI | SANTRI | MEMBER{" "}
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                    Apakah Anda PPMI | SANTRI | MEMBER
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600">
                     Masuk dengan akun member Anda
                   </p>
                 </div>
@@ -206,7 +206,7 @@ export default function HomePage() {
               <Button
                 onClick={handleMemberAccess}
                 variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50 bg-transparent"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 bg-transparent w-full sm:w-auto"
               >
                 Masuk Sebagai Member
               </Button>

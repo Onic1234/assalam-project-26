@@ -13,7 +13,7 @@ TRUNCATE TABLE `admins`;
 TRUNCATE TABLE `santris`;
 TRUNCATE TABLE `produks`;
 TRUNCATE TABLE `categories`;
-TRUNCATE TABLE `ticketprices`;
+TRUNCATE TABLE `TicketPrices`;
 TRUNCATE TABLE `ppmis`;
 TRUNCATE TABLE `staffs`;
 TRUNCATE TABLE `members`;
@@ -77,7 +77,7 @@ INSERT INTO `penjualans` (`CustomerId`, `Tanggal_Kunjungan`, `Kategori`, `Kuanti
 (1, CURRENT_TIMESTAMP, 'Staff', 1, 'Tunai', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- 8. Seeding TicketPrices
-INSERT INTO `ticketprices` (`kategori`, `harga`, `discountPercentage`) VALUES
+INSERT INTO `TicketPrices` (`kategori`, `harga`, `discountPercentage`) VALUES
 ('Reguler', 25000, 0),
 ('Staff', 10000, 0);
 

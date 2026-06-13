@@ -523,14 +523,14 @@ export default function MemberManagementPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Manajemen Member</CardTitle>
                   <CardDescription>
                     Kelola data member dan keanggotaan dengan Face ID
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                   {/* --- PERUBAHAN --- Tombol Impor dan Dialognya */}
                   <Dialog
                     open={isImportDialogOpen}

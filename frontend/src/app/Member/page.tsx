@@ -30,14 +30,14 @@ export default function MemberPage() {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleBackToHome} className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={handleBackToHome} className="flex items-center gap-2 flex-shrink-0">
               <ArrowLeft className="h-4 w-4" />
               Kembali ke Beranda
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Pilih Jenis Akses</h1>
-              <p className="text-sm text-gray-600">Pilih kategori akses yang sesuai dengan status Anda</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Pilih Jenis Akses</h1>
+              <p className="text-xs sm:text-sm text-gray-600">Pilih kategori akses yang sesuai dengan status Anda</p>
             </div>
           </div>
         </div>

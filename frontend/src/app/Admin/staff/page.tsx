@@ -344,14 +344,14 @@ export default function StaffManagementPage() {
         <main className="flex-1 p-4 md:p-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Manajemen Staff</CardTitle>
                   <CardDescription>
                     Kelola data staff dan karyawan dengan Face ID
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                   {/* --- PERUBAHAN --- Tombol dan Dialog Impor ditambahkan di sini */}
                   <Dialog
                     open={isImportDialogOpen}

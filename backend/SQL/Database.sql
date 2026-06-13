@@ -6,7 +6,7 @@ CREATE DATABASE IF NOT EXISTS `assalam`;
 USE `assalam`;
 
 -- Hapus tabel jika sudah ada untuk memulai dari awal (opsional, hati-hati di production)
-DROP TABLE IF EXISTS `penjualans`, `ticketprice`, `members`, `regulers`, `staffs`, `ppmis`, `transaction_details`, `transaksis`, `balances`, `santris`, `admins`, `produks`, `categories`, `sequelizemeta`;
+DROP TABLE IF EXISTS `penjualans`, `TicketPrices`, `members`, `regulers`, `staffs`, `ppmis`, `transaction_details`, `transaksis`, `balances`, `santris`, `admins`, `produks`, `categories`, `settings`, `sequelizemeta`;
 
 -- =================================================================
 -- Tabel untuk Autentikasi dan Manajemen Internal

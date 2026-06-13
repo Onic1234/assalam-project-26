@@ -1185,10 +1185,10 @@ export default function Dashboard() {
     </Dialog>
   );
   const renderDashboard = () => (
-    <div className="h-screen w-full flex flex-col overflow-hidden">
+    <div className="min-h-screen lg:h-screen w-full flex flex-col lg:overflow-hidden bg-gray-50">
       <header className="border-b bg-white shadow-sm">
-        <div className="flex h-16 items-center px-8 justify-between">
-          <h1 className="text-2xl font-semibold">Payment Dashboard</h1>
+        <div className="flex h-16 items-center px-4 md:px-8 justify-between">
+          <h1 className="text-lg md:text-2xl font-semibold">Payment Dashboard</h1>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium">

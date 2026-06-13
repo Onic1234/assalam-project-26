@@ -610,14 +610,14 @@ export default function ProductsPage() {
 
           <Card className="mb-6">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Categories</CardTitle>
                   <CardDescription>
                     Manage product categories ({categories.length} total)
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                   <Input
                     type="search"
                     placeholder="Search categories..."
