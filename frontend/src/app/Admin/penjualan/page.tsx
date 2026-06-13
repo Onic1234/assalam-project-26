@@ -118,8 +118,12 @@ export default function PenjualanPage() {
     }
   };
 
-  // --- FUNGSI HELPER ---
-  const formatDate = (date: Date): string => date.toISOString().split("T")[0];
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -163,9 +167,7 @@ export default function PenjualanPage() {
             (sale: ApiSaleData) => ({
               id: sale.id.toString(),
               name: sale.customerName,
-              date: new Date(sale.Tanggal_Kunjungan)
-                .toISOString()
-                .split("T")[0],
+              date: formatDate(new Date(sale.Tanggal_Kunjungan)),
               category: sale.Kategori.toLowerCase() as Visitor["category"],
               quantity: sale.Kuantitas,
               paymentMethod: (
