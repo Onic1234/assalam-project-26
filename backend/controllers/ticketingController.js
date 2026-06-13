@@ -253,15 +253,28 @@ const getFullSalesData = async () => {
       };
 
       const customerInfo = models[sale.Kategori];
+      let customerPhone = "N/A";
       if (customerInfo && sale.CustomerId) {
+        const fields = [customerInfo.nameField];
+        if (sale.Kategori === "Reguler") {
+          fields.push("No_Telepon");
+        } else if (sale.Kategori === "Staff") {
+          fields.push("No_WhatsApp");
+        }
         const customer = await customerInfo.model.findByPk(sale.CustomerId, {
-          attributes: [customerInfo.nameField],
+          attributes: fields,
         });
         if (customer) {
           customerName = customer[customerInfo.nameField];
+          if (sale.Kategori === "Reguler") {
+            customerPhone = customer.No_Telepon || "N/A";
+          } else if (sale.Kategori === "Staff") {
+            customerPhone = customer.No_WhatsApp || "N/A";
+          }
         }
       }
       saleJson.customerName = customerName;
+      saleJson.customerPhone = customerPhone;
       return saleJson;
     })
   );
@@ -306,6 +319,7 @@ exports.exportSalesToExcel = async (request, h) => {
       const sheet = workbook.addWorksheet(sheetName);
       sheet.columns = [
         { header: "Nama Pembeli", key: "customerName", width: 30 },
+        { header: "Nomor Telepon", key: "customerPhone", width: 20 },
         {
           header: "Tanggal Kunjungan",
           key: "Tanggal_Kunjungan",
