@@ -94,6 +94,38 @@ interface ApiResponse<T> {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+const getLocalDatetimeString = () => {
+  const date = new Date();
+  const tzoffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16);
+};
+
+const formatDateTime = (dateStr: string | undefined) => {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch {
+    return dateStr;
+  }
+};
+
+const formatForDatetimeLocal = (dateStr: string | undefined) => {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    const tzoffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16);
+  } catch {
+    return '';
+  }
+};
+
 export default function LostFoundPage() {
   const [items, setItems] = useState<LostItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,7 +153,7 @@ export default function LostFoundPage() {
   const [addForm, setAddForm] = useState({
     nama_barang: '',
     deskripsi: '',
-    tanggal_ditemukan: new Date().toISOString().split('T')[0],
+    tanggal_ditemukan: getLocalDatetimeString(),
     lokasi_ditemukan: '',
     foto_barang: '',
   });
@@ -141,7 +173,7 @@ export default function LostFoundPage() {
   const [claimForm, setClaimForm] = useState({
     nama_pemilik: '',
     nomor_telepon_pemilik: '',
-    tanggal_diambil: new Date().toISOString().split('T')[0],
+    tanggal_diambil: getLocalDatetimeString(),
   });
 
   // Headers config
@@ -208,7 +240,7 @@ export default function LostFoundPage() {
       setAddForm({
         nama_barang: '',
         deskripsi: '',
-        tanggal_ditemukan: new Date().toISOString().split('T')[0],
+        tanggal_ditemukan: getLocalDatetimeString(),
         lokasi_ditemukan: '',
         foto_barang: '',
       });
@@ -284,7 +316,7 @@ export default function LostFoundPage() {
       setClaimForm({
         nama_pemilik: '',
         nomor_telepon_pemilik: '',
-        tanggal_diambil: new Date().toISOString().split('T')[0],
+        tanggal_diambil: getLocalDatetimeString(),
       });
       fetchItems();
     } catch (err) {
@@ -341,13 +373,13 @@ export default function LostFoundPage() {
     setEditForm({
       nama_barang: item.nama_barang,
       deskripsi: item.deskripsi || '',
-      tanggal_ditemukan: item.tanggal_ditemukan,
+      tanggal_ditemukan: formatForDatetimeLocal(item.tanggal_ditemukan),
       lokasi_ditemukan: item.lokasi_ditemukan || '',
       status: item.status,
       foto_barang: item.foto_barang || '',
       nama_pemilik: item.nama_pemilik || '',
       nomor_telepon_pemilik: item.nomor_telepon_pemilik || '',
-      tanggal_diambil: item.tanggal_diambil || '',
+      tanggal_diambil: formatForDatetimeLocal(item.tanggal_diambil),
     });
     setIsEditOpen(true);
   };
@@ -566,7 +598,7 @@ export default function LostFoundPage() {
                           <TableCell>
                             <span className="flex items-center gap-1.5 text-sm">
                               <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {item.tanggal_ditemukan}
+                              {formatDateTime(item.tanggal_ditemukan)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -670,7 +702,7 @@ export default function LostFoundPage() {
                       <CardContent className="p-4 pt-0 text-xs space-y-2 border-t mt-auto">
                         <div className="flex items-center gap-1.5 text-muted-foreground mt-2">
                           <Calendar className="h-3.5 w-3.5" />
-                          <span>Ditemukan: {item.tanggal_ditemukan}</span>
+                          <span>Ditemukan: {formatDateTime(item.tanggal_ditemukan)}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <MapPin className="h-3.5 w-3.5" />
@@ -692,7 +724,7 @@ export default function LostFoundPage() {
                             </p>
                             <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
                               <Calendar className="h-3 w-3 text-muted-foreground" />
-                              Tgl Ambil: {item.tanggal_diambil}
+                              Tgl Ambil: {formatDateTime(item.tanggal_diambil)}
                             </p>
                           </div>
                         )}
@@ -758,10 +790,10 @@ export default function LostFoundPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="addDate">Tanggal Ditemukan <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="addDate">Tanggal & Waktu Ditemukan <span className="text-red-500">*</span></Label>
                   <Input
                     id="addDate"
-                    type="date"
+                    type="datetime-local"
                     value={addForm.tanggal_ditemukan}
                     onChange={(e) => setAddForm({ ...addForm, tanggal_ditemukan: e.target.value })}
                   />
@@ -869,10 +901,10 @@ export default function LostFoundPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="editDate">Tanggal Ditemukan <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="editDate">Tanggal & Waktu Ditemukan <span className="text-red-500">*</span></Label>
                   <Input
                     id="editDate"
-                    type="date"
+                    type="datetime-local"
                     value={editForm.tanggal_ditemukan}
                     onChange={(e) => setEditForm({ ...editForm, tanggal_ditemukan: e.target.value })}
                   />
@@ -950,10 +982,10 @@ export default function LostFoundPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="editClaimDate">Tanggal Diambil <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="editClaimDate">Tanggal & Waktu Diambil <span className="text-red-500">*</span></Label>
                       <Input
                         id="editClaimDate"
-                        type="date"
+                        type="datetime-local"
                         value={editForm.tanggal_diambil}
                         onChange={(e) => setEditForm({ ...editForm, tanggal_diambil: e.target.value })}
                       />
@@ -1055,10 +1087,10 @@ export default function LostFoundPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="claimDate">Tanggal Diambil <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="claimDate">Tanggal & Waktu Diambil <span className="text-red-500">*</span></Label>
                   <Input
                     id="claimDate"
-                    type="date"
+                    type="datetime-local"
                     value={claimForm.tanggal_diambil}
                     onChange={(e) => setClaimForm({ ...claimForm, tanggal_diambil: e.target.value })}
                   />

@@ -196,7 +196,7 @@ const lostItemController = {
       if (status === "Claimed") {
         updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;
-        updates.tanggal_diambil = tanggal_diambil || new Date().toISOString().split("T")[0]; // default to today if not provided
+        updates.tanggal_diambil = tanggal_diambil || new Date().toISOString(); // default to current time if not provided
       } else if (status === "Lost") {
         // If status reset back to Lost, reset claim fields
         updates.nama_pemilik = null;

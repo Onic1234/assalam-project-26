@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       tanggal_ditemukan: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DATE,
         allowNull: false,
       },
       lokasi_ditemukan: {
@@ -49,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       tanggal_diambil: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DATE,
         allowNull: true,
       },
     },

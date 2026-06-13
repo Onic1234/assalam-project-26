@@ -17,7 +17,7 @@ module.exports = {
         allowNull: true,
       },
       tanggal_ditemukan: {
-        type: Sequelize.DATEONLY,
+        type: Sequelize.DATE,
         allowNull: false,
       },
       lokasi_ditemukan: {
@@ -42,7 +42,7 @@ module.exports = {
         allowNull: true,
       },
       tanggal_diambil: {
-        type: Sequelize.DATEONLY,
+        type: Sequelize.DATE,
         allowNull: true,
       },
       createdAt: {
