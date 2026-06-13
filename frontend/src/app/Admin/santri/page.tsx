@@ -141,6 +141,75 @@ export default function SantriManagementPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
+  // State untuk bulk delete
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const handleSelectSantri = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFiltered = () => {
+    const allFilteredIds = filteredSantri.map((s) => s.id);
+    const allAreSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.includes(id));
+
+    if (allAreSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !allFilteredIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => {
+        const newSelection = [...prev];
+        allFilteredIds.forEach((id) => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
+    }
+  };
+
+  const handleBulkDeleteSantri = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/customers/santri/${id}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(false),
+        });
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (error) {
+        failCount++;
+      }
+    }
+
+    await fetchSantri();
+    setSelectedIds([]);
+    setIsBulkDeleting(false);
+
+    if (failCount === 0) {
+      toast({
+        title: 'Berhasil',
+        description: `${successCount} santri berhasil dihapus`,
+      });
+    } else {
+      toast({
+        title: 'Selesai dengan error',
+        description: `${successCount} santri berhasil dihapus, ${failCount} gagal`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Fungsi untuk mengambil data santri
   const fetchSantri = async () => {
     setLoading(true);
@@ -562,6 +631,34 @@ export default function SantriManagementPage() {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
+
+                  {selectedIds.length > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isBulkDeleting}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Hapus Terpilih ({selectedIds.length})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus Santri Terpilih</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Apakah Anda yakin ingin menghapus {selectedIds.length} santri yang terpilih? Tindakan ini tidak dapat dibatalkan.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleBulkDeleteSantri}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Hapus Semua
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -602,6 +699,17 @@ export default function SantriManagementPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                          checked={
+                            filteredSantri.length > 0 &&
+                            filteredSantri.every((s) => selectedIds.includes(s.id))
+                          }
+                          onChange={handleSelectAllFiltered}
+                        />
+                      </TableHead>
                       <TableHead>ID Santri</TableHead>
                       <TableHead>Nama</TableHead>
                       <TableHead>Unit</TableHead>
@@ -615,19 +723,27 @@ export default function SantriManagementPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                        <TableCell colSpan={9} className="text-center py-8">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : filteredSantri.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                        <TableCell colSpan={9} className="text-center py-8">
                           Tidak ada data santri
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredSantri.map((santri) => (
-                        <TableRow key={santri.id}>
+                        <TableRow key={santri.id} className={selectedIds.includes(santri.id) ? "bg-muted/50" : ""}>
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                              checked={selectedIds.includes(santri.id)}
+                              onChange={() => handleSelectSantri(santri.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {santri.id_santri}
                           </TableCell>
