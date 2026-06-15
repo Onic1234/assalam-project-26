@@ -6,6 +6,7 @@ const {
   PPMI,
   Santri,
   Member,
+  TicketPrice,
 } = require("../models");
 const { Op } = require("sequelize"); // <-- BARIS INI DITAMBAHKAN
 const Boom = require("@hapi/boom");
@@ -287,6 +288,13 @@ exports.exportSalesToExcel = async (request, h) => {
   try {
     const salesData = await getFullSalesData();
 
+    // Fetch ticket prices for calculating totals
+    const prices = await TicketPrice.findAll();
+    const pricesObj = { Reguler: 25000, Staff: 15000 };
+    prices.forEach((p) => {
+      pricesObj[p.kategori] = p.harga * (1 - (p.discountPercentage || 0) / 100);
+    });
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Sistem Tiket";
     workbook.created = new Date();
@@ -334,6 +342,12 @@ exports.exportSalesToExcel = async (request, h) => {
           width: 15,
           style: { alignment: { horizontal: "right" } },
         },
+        {
+          header: "Total Harga",
+          key: "Total_Harga",
+          width: 20,
+          style: { numFmt: '"Rp "#,##0', alignment: { horizontal: "right" } },
+        },
       ];
 
       // Style untuk header
@@ -350,10 +364,15 @@ exports.exportSalesToExcel = async (request, h) => {
         const adjustedDate = sale.Tanggal_Kunjungan
           ? new Date(new Date(sale.Tanggal_Kunjungan).getTime() + 7 * 60 * 60 * 1000)
           : null;
+        
+        const price = pricesObj[sale.Kategori] || 0;
+        const totalHarga = (sale.Kuantitas || 0) * price;
+
         sheet.addRow({
           ...sale,
           Tanggal_Kunjungan: adjustedDate,
           Metode_Pembayaran: sale.Metode_Pembayaran || "Tunai", // Default jika null
+          Total_Harga: totalHarga,
         });
       });
     };

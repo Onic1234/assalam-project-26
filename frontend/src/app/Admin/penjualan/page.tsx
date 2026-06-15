@@ -39,6 +39,7 @@ import {
   Wallet, // Ikon untuk Tunai
   QrCode, // Ikon untuk QRIS
   FileSpreadsheet, // Ikon untuk ekspor Excel
+  Coins, // Ikon untuk pendapatan
 } from "lucide-react";
 
 // Definisi base URL untuk API
@@ -69,6 +70,10 @@ export default function PenjualanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false); // <-- State baru untuk loading ekspor
+  const [ticketPrices, setTicketPrices] = useState<{
+    reguler: number;
+    staff: number;
+  }>({ reguler: 25000, staff: 15000 }); // Default fallbacks
 
   // State untuk semua kontrol filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,6 +193,38 @@ export default function PenjualanPage() {
     };
 
     fetchVisitors();
+  }, []);
+
+  // Fetch ticket prices for revenue calculation
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+        const response = await fetch(`${API_BASE_URL}/ticketing/prices`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const prices = await response.json();
+          const pricesObj = { reguler: 25000, staff: 15000 };
+          prices.forEach((p: any) => {
+            const finalPrice = p.harga * (1 - (p.discountPercentage || 0) / 100);
+            if (p.kategori === "Reguler") {
+              pricesObj.reguler = finalPrice;
+            } else if (p.kategori === "Staff") {
+              pricesObj.staff = finalPrice;
+            }
+          });
+          setTicketPrices(pricesObj);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil harga tiket:", err);
+      }
+    };
+
+    fetchPrices();
   }, []);
 
   // --- HANDLER UNTUK KONTROL FILTER ---
@@ -357,6 +394,37 @@ export default function PenjualanPage() {
       return acc;
     }, stats);
   }, [finalFilteredVisitors]); // Bergantung pada data yang sudah difilter
+
+  // 3. Menghitung statistik transaksi (pendapatan) berdasarkan data yang SUDAH difilter
+  const transactionStats = useMemo(() => {
+    let totalRevenue = 0;
+    let cashRevenue = 0;
+    let qrisRevenue = 0;
+
+    finalFilteredVisitors.forEach((visitor) => {
+      let price = 0;
+      if (visitor.category === "reguler") {
+        price = ticketPrices.reguler;
+      } else if (visitor.category === "staff") {
+        price = ticketPrices.staff;
+      }
+      
+      const amount = visitor.quantity * price;
+      totalRevenue += amount;
+      
+      if (visitor.paymentMethod === "cash") {
+        cashRevenue += amount;
+      } else if (visitor.paymentMethod === "qris") {
+        qrisRevenue += amount;
+      }
+    });
+
+    return {
+      total: totalRevenue,
+      cash: cashRevenue,
+      qris: qrisRevenue,
+    };
+  }, [finalFilteredVisitors, ticketPrices]);
 
   // --- TAMPILAN / JSX ---
   if (loading) {
@@ -567,6 +635,54 @@ export default function PenjualanPage() {
             </Card>
           </div>
 
+          {/* --- STATISTIK KEUANGAN --- */}
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-muted-foreground">Statistik Pendapatan</h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="bg-green-50/50 dark:bg-green-950/10 border-green-100 dark:border-green-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-semibold text-green-800 dark:text-green-300">
+                    Total Pendapatan
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-700 dark:text-green-200">
+                    Rp {transactionStats.total.toLocaleString("id-ID")}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                    Total Tunai (Cash)
+                  </CardTitle>
+                  <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-700 dark:text-blue-200">
+                    Rp {transactionStats.cash.toLocaleString("id-ID")}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-purple-50/50 dark:bg-purple-950/10 border-purple-100 dark:border-purple-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-semibold text-purple-800 dark:text-purple-300">
+                    Total QRIS
+                  </CardTitle>
+                  <QrCode className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-700 dark:text-purple-200">
+                    Rp {transactionStats.qris.toLocaleString("id-ID")}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Rincian Penjualan</CardTitle>
@@ -587,12 +703,13 @@ export default function PenjualanPage() {
                       <TableHead>Kategori</TableHead>
                       <TableHead>Metode Pembayaran</TableHead>
                       <TableHead>Kuantitas</TableHead>
+                      <TableHead className="text-right font-semibold">Total Harga</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {!error && finalFilteredVisitors.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
+                        <TableCell colSpan={6} className="text-center py-8">
                           {visitors.length > 0
                             ? "Tidak ada data yang cocok dengan filter Anda."
                             : "Tidak ada data penjualan yang ditemukan."}
@@ -632,6 +749,17 @@ export default function PenjualanPage() {
                             </div>
                           </TableCell>
                           <TableCell>{visitor.quantity}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            Rp {(() => {
+                              let price = 0;
+                              if (visitor.category === "reguler") {
+                                price = ticketPrices.reguler;
+                              } else if (visitor.category === "staff") {
+                                price = ticketPrices.staff;
+                              }
+                              return (visitor.quantity * price).toLocaleString("id-ID");
+                            })()}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
