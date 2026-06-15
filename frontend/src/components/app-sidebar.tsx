@@ -74,11 +74,11 @@ const attendanceMenuItems = [
     url: '/Admin/tickets',
     icon: Ticket,
   },
-  {
-    title: 'Lost and Found',
-    url: '/Admin/lost-found',
-    icon: Archive,
-  },
+  // {
+  //   title: 'Lost and Found',
+  //   url: '/Admin/lost-found',
+  //   icon: Archive,
+  // },
   {
     title: 'Settings',
     url: '/Admin/settings',
@@ -103,11 +103,11 @@ const kasirNavData = [
     url: '/Admin/topup',
     icon: CreditCard,
   },
-  {
-    title: 'Lost and Found',
-    url: '/Admin/lost-found',
-    icon: Archive,
-  },
+  // {
+  //   title: 'Lost and Found',
+  //   url: '/Admin/lost-found',
+  //   icon: Archive,
+  // },
 ];
 
 // Navigation data for admin (logged-in)

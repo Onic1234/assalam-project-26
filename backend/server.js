@@ -35,6 +35,45 @@ const init = async () => {
   // Simpan instance sequelize agar bisa digunakan di seluruh aplikasi
   global.sequelize = sequelize;
 
+  // Ensure 'image' column exists in 'produks' table (compatibility patch for case-sensitive databases)
+  try {
+    const queryInterface = sequelize.getQueryInterface();
+    let targetTableName = 'produks';
+    try {
+      await queryInterface.describeTable('produks');
+      targetTableName = 'produks';
+    } catch (e) {
+      try {
+        await queryInterface.describeTable('Produks');
+        targetTableName = 'Produks';
+      } catch (e2) {
+        throw new Error('Neither "produks" nor "Produks" table could be found.');
+      }
+    }
+
+    const tableDefinition = await queryInterface.describeTable(targetTableName);
+    if (!tableDefinition.image) {
+      await queryInterface.addColumn(targetTableName, 'image', {
+        type: Sequelize.TEXT('long'),
+        allowNull: true,
+      });
+      console.log(`✅ Column "image" successfully added to "${targetTableName}" table.`);
+    } else {
+      console.log(`ℹ️ Column "image" already exists in "${targetTableName}" table.`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Database schema patch warning:', err.message);
+  }
+
+  // Ensure 'lost_items' table exists (compatibility patch for case-sensitive databases)
+  try {
+    const { LostItem } = require("./models");
+    await LostItem.sync();
+    console.log('✅ Table "lost_items" verified/created.');
+  } catch (err) {
+    console.warn('⚠️ Could not verify/create "lost_items" table:', err.message);
+  }
+
   // Inisialisasi server Hapi
   const server = Hapi.server({
     port: process.env.PORT || 3001,
