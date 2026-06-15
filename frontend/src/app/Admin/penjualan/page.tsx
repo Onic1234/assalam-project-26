@@ -177,7 +177,7 @@ export default function PenjualanPage() {
               quantity: sale.Kuantitas,
               paymentMethod: (
                 sale.Metode_Pembayaran || "cash"
-              ).toLowerCase() as Visitor["paymentMethod"],
+              ).toLowerCase() === "qris" ? "qris" : "cash",
             })
           );
           setVisitors(formattedVisitors);
@@ -395,7 +395,113 @@ export default function PenjualanPage() {
     }, stats);
   }, [finalFilteredVisitors]); // Bergantung pada data yang sudah difilter
 
-  // 3. Menghitung statistik transaksi (pendapatan) berdasarkan data yang SUDAH difilter
+  // Filter data untuk statistik periode (mengabaikan filter tanggal agar data periode tetap utuh)
+  const categoryAndSearchFiltered = useMemo(() => {
+    return visitors.filter((visitor) => {
+      const searchMatch =
+        visitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getPaymentMethodLabel(visitor.paymentMethod)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+
+      const categoryMatch = selectedCategory
+        ? visitor.category === selectedCategory
+        : true;
+
+      return searchMatch && categoryMatch;
+    });
+  }, [visitors, searchTerm, selectedCategory]);
+
+  // Definisikan tanggal awal/akhir untuk setiap periode
+  const periods = useMemo(() => {
+    const now = new Date();
+    
+    // Today
+    const todayStr = formatDate(now);
+    
+    // This Week (Senin - Minggu)
+    const currentDay = now.getDay();
+    const firstDayOfWeek = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - currentDay + (currentDay === 0 ? -6 : 1)
+    );
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(lastDayOfWeek.getDate() + 6);
+    const thisWeekStart = formatDate(firstDayOfWeek);
+    const thisWeekEnd = formatDate(lastDayOfWeek);
+    
+    // This Month
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const thisMonthStart = formatDate(firstDayOfMonth);
+    const thisMonthEnd = formatDate(lastDayOfMonth);
+    
+    // This Year
+    const thisYearStart = `${now.getFullYear()}-01-01`;
+    const thisYearEnd = `${now.getFullYear()}-12-31`;
+
+    return {
+      today: todayStr,
+      weekStart: thisWeekStart,
+      weekEnd: thisWeekEnd,
+      monthStart: thisMonthStart,
+      monthEnd: thisMonthEnd,
+      yearStart: thisYearStart,
+      yearEnd: thisYearEnd,
+    };
+  }, []);
+
+  // Hitung statistik transaksi (pendapatan) untuk 4 periode
+  const periodStats = useMemo(() => {
+    const stats = {
+      today: { total: 0, cash: 0, qris: 0 },
+      week: { total: 0, cash: 0, qris: 0 },
+      month: { total: 0, cash: 0, qris: 0 },
+      year: { total: 0, cash: 0, qris: 0 },
+    };
+
+    categoryAndSearchFiltered.forEach((visitor) => {
+      let price = 0;
+      if (visitor.category === "reguler") {
+        price = ticketPrices.reguler;
+      } else if (visitor.category === "staff") {
+        price = ticketPrices.staff;
+      }
+      const amount = visitor.quantity * price;
+      const date = visitor.date;
+      const isQris = visitor.paymentMethod === "qris";
+
+      // Today
+      if (date === periods.today) {
+        stats.today.total += amount;
+        if (isQris) stats.today.qris += amount;
+        else stats.today.cash += amount;
+      }
+      // This Week
+      if (date >= periods.weekStart && date <= periods.weekEnd) {
+        stats.week.total += amount;
+        if (isQris) stats.week.qris += amount;
+        else stats.week.cash += amount;
+      }
+      // This Month
+      if (date >= periods.monthStart && date <= periods.monthEnd) {
+        stats.month.total += amount;
+        if (isQris) stats.month.qris += amount;
+        else stats.month.cash += amount;
+      }
+      // This Year
+      if (date >= periods.yearStart && date <= periods.yearEnd) {
+        stats.year.total += amount;
+        if (isQris) stats.year.qris += amount;
+        else stats.year.cash += amount;
+      }
+    });
+
+    return stats;
+  }, [categoryAndSearchFiltered, ticketPrices, periods]);
+
+  // 4. Menghitung statistik transaksi untuk pilihan/filter aktif saat ini
   const transactionStats = useMemo(() => {
     let totalRevenue = 0;
     let cashRevenue = 0;
@@ -638,45 +744,98 @@ export default function PenjualanPage() {
           {/* --- STATISTIK KEUANGAN --- */}
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground">Statistik Pendapatan</h2>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {/* Berdasarkan Filter */}
+              <Card className="bg-slate-900 text-slate-50 border-slate-800 dark:bg-slate-950 dark:border-slate-800 shadow-md ring-2 ring-slate-800/10">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Berdasarkan Filter
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-amber-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-white">
+                    Rp {transactionStats.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3 text-slate-300" /> Tunai: Rp {transactionStats.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3 text-slate-300" /> QRIS: Rp {transactionStats.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Hari Ini */}
               <Card className="bg-green-50/50 dark:bg-green-950/10 border-green-100 dark:border-green-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-semibold text-green-800 dark:text-green-300">
-                    Total Pendapatan
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-green-800 dark:text-green-300 uppercase tracking-wider">
+                    Hari Ini
                   </CardTitle>
                   <Coins className="h-4 w-4 text-green-600 dark:text-green-400" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-700 dark:text-green-200">
-                    Rp {transactionStats.total.toLocaleString("id-ID")}
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-green-700 dark:text-green-200">
+                    Rp {periodStats.today.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.today.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.today.qris.toLocaleString("id-ID")}</span>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Minggu Ini */}
               <Card className="bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                    Total Tunai (Cash)
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                    Minggu Ini
                   </CardTitle>
-                  <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <Coins className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-700 dark:text-blue-200">
-                    Rp {transactionStats.cash.toLocaleString("id-ID")}
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-blue-700 dark:text-blue-200">
+                    Rp {periodStats.week.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.week.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.week.qris.toLocaleString("id-ID")}</span>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Bulan Ini */}
               <Card className="bg-purple-50/50 dark:bg-purple-950/10 border-purple-100 dark:border-purple-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-semibold text-purple-800 dark:text-purple-300">
-                    Total QRIS
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-purple-800 dark:text-purple-300 uppercase tracking-wider">
+                    Bulan Ini
                   </CardTitle>
-                  <QrCode className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <Coins className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-700 dark:text-purple-200">
-                    Rp {transactionStats.qris.toLocaleString("id-ID")}
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-purple-700 dark:text-purple-200">
+                    Rp {periodStats.month.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.month.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.month.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tahun Ini */}
+              <Card className="bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                    Tahun Ini
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-amber-700 dark:text-amber-200">
+                    Rp {periodStats.year.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.year.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.year.qris.toLocaleString("id-ID")}</span>
                   </div>
                 </CardContent>
               </Card>
