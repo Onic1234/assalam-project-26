@@ -55,6 +55,8 @@ const lostItemRoutes = [
           lokasi_ditemukan: Joi.string().allow("").optional(),
           status: Joi.string().valid("Lost", "Claimed").default("Lost").optional(),
           foto_barang: Joi.any().optional(), // Can be string or file buffer
+          kode_barang: Joi.string().allow("").optional(),
+          foto_ktp: Joi.any().optional(),
           nama_pemilik: Joi.string().allow("").optional(),
           nomor_telepon_pemilik: Joi.string().allow("").optional(),
           tanggal_diambil: Joi.string().allow("").optional(),
@@ -81,6 +83,8 @@ const lostItemRoutes = [
           lokasi_ditemukan: Joi.string().allow("").optional(),
           status: Joi.string().valid("Lost", "Claimed").optional(),
           foto_barang: Joi.any().optional(),
+          kode_barang: Joi.string().allow("").optional(),
+          foto_ktp: Joi.any().optional(),
           nama_pemilik: Joi.string().allow("").optional(),
           nomor_telepon_pemilik: Joi.string().allow("").optional(),
           tanggal_diambil: Joi.string().allow("").optional(),

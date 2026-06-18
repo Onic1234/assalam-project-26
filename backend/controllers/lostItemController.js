@@ -46,6 +46,38 @@ const getMimeTypeFromBuffer = (buffer) => {
   return null;
 };
 
+// Helper to generate initials-based item code (e.g., Kunci Motor -> KM-001)
+const generateItemCode = async (nama_barang) => {
+  if (!nama_barang) return "BRG-001";
+  
+  // Extract words
+  const words = nama_barang.trim().split(/\s+/);
+  let prefix = "";
+  
+  if (words.length === 1) {
+    // Single word, take first 3 letters
+    prefix = words[0].substring(0, 3).toUpperCase();
+  } else {
+    // Multiple words, take first letter of each word
+    prefix = words.map(w => w[0]).join("").substring(0, 4).toUpperCase();
+  }
+  
+  // Clean prefix to keep only alphanumeric
+  prefix = prefix.replace(/[^A-Z0-9]/g, "");
+  if (!prefix) prefix = "BRG";
+
+  // Find existing items with this prefix to get the next counter
+  const { count } = await LostItem.findAndCountAll({
+    where: {
+      kode_barang: {
+        [Op.like]: `${prefix}%`
+      }
+    }
+  });
+
+  return `${prefix}-${String(count + 1).padStart(3, '0')}`;
+};
+
 const lostItemController = {
   // 1. Create Lost Item
   createLostItem: async (request, h) => {
@@ -59,6 +91,7 @@ const lostItemController = {
         nama_pemilik,
         nomor_telepon_pemilik,
         tanggal_diambil,
+        kode_barang,
       } = request.payload;
 
       let base64Image = null;
@@ -71,6 +104,23 @@ const lostItemController = {
         }
       }
 
+      let base64Ktp = null;
+      if (request.payload.foto_ktp) {
+        if (Buffer.isBuffer(request.payload.foto_ktp)) {
+          const mimeType = getMimeTypeFromBuffer(request.payload.foto_ktp) || "image/jpeg";
+          base64Ktp = `data:${mimeType};base64,${request.payload.foto_ktp.toString("base64")}`;
+        } else if (typeof request.payload.foto_ktp === "string") {
+          base64Ktp = request.payload.foto_ktp;
+        }
+      }
+
+      let code = kode_barang;
+      if (!code || !code.trim()) {
+        code = await generateItemCode(nama_barang);
+      } else {
+        code = code.trim();
+      }
+
       const newItem = await LostItem.create({
         nama_barang: nama_barang ? nama_barang.trim() : "",
         deskripsi: deskripsi ? deskripsi.trim() : null,
@@ -78,6 +128,8 @@ const lostItemController = {
         lokasi_ditemukan: lokasi_ditemukan ? lokasi_ditemukan.trim() : null,
         status,
         foto_barang: base64Image,
+        kode_barang: code,
+        foto_ktp: base64Ktp,
         nama_pemilik: nama_pemilik ? nama_pemilik.trim() : null,
         nomor_telepon_pemilik: nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null,
         tanggal_diambil: tanggal_diambil || null,
@@ -172,6 +224,7 @@ const lostItemController = {
         nama_pemilik,
         nomor_telepon_pemilik,
         tanggal_diambil,
+        kode_barang,
       } = request.payload;
 
       let base64Image = item.foto_barang;
@@ -184,24 +237,42 @@ const lostItemController = {
         }
       }
 
+      let base64Ktp = item.foto_ktp;
+      if (request.payload.foto_ktp) {
+        if (Buffer.isBuffer(request.payload.foto_ktp)) {
+          const mimeType = getMimeTypeFromBuffer(request.payload.foto_ktp) || "image/jpeg";
+          base64Ktp = `data:${mimeType};base64,${request.payload.foto_ktp.toString("base64")}`;
+        } else if (typeof request.payload.foto_ktp === "string") {
+          base64Ktp = request.payload.foto_ktp;
+        }
+      } else if (request.payload.foto_ktp === null || request.payload.foto_ktp === "") {
+        base64Ktp = null;
+      }
+
       const updates = {};
       if (nama_barang !== undefined) updates.nama_barang = nama_barang.trim();
       if (deskripsi !== undefined) updates.deskripsi = deskripsi ? deskripsi.trim() : null;
       if (tanggal_ditemukan !== undefined) updates.tanggal_ditemukan = tanggal_ditemukan;
       if (lokasi_ditemukan !== undefined) updates.lokasi_ditemukan = lokasi_ditemukan ? lokasi_ditemukan.trim() : null;
       if (status !== undefined) updates.status = status;
+      if (kode_barang !== undefined) updates.kode_barang = kode_barang ? kode_barang.trim() : null;
       if (request.payload.foto_barang !== undefined) updates.foto_barang = base64Image;
+      if (request.payload.foto_ktp !== undefined) updates.foto_ktp = base64Ktp;
 
       // Handle claim updates if status is changed to Claimed
       if (status === "Claimed") {
         updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;
         updates.tanggal_diambil = tanggal_diambil || new Date().toISOString(); // default to current time if not provided
+        if (request.payload.foto_ktp !== undefined) {
+          updates.foto_ktp = base64Ktp;
+        }
       } else if (status === "Lost") {
         // If status reset back to Lost, reset claim fields
         updates.nama_pemilik = null;
         updates.nomor_telepon_pemilik = null;
         updates.tanggal_diambil = null;
+        updates.foto_ktp = null;
       } else {
         if (nama_pemilik !== undefined) updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         if (nomor_telepon_pemilik !== undefined) updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;

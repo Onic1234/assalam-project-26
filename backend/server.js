@@ -65,13 +65,32 @@ const init = async () => {
     console.warn('⚠️ Database schema patch warning:', err.message);
   }
 
-  // Ensure 'lost_items' table exists (compatibility patch for case-sensitive databases)
+  // Ensure 'lost_items' table and columns exist (compatibility patch for case-sensitive databases)
   try {
     const { LostItem } = require("./models");
     await LostItem.sync();
     console.log('✅ Table "lost_items" verified/created.');
+
+    const queryInterface = sequelize.getQueryInterface();
+    const tableDefinition = await queryInterface.describeTable('lost_items');
+
+    if (!tableDefinition.kode_barang) {
+      await queryInterface.addColumn('lost_items', 'kode_barang', {
+        type: Sequelize.STRING,
+        allowNull: true,
+      });
+      console.log('✅ Column "kode_barang" successfully added to "lost_items" table.');
+    }
+
+    if (!tableDefinition.foto_ktp) {
+      await queryInterface.addColumn('lost_items', 'foto_ktp', {
+        type: Sequelize.TEXT('long'),
+        allowNull: true,
+      });
+      console.log('✅ Column "foto_ktp" successfully added to "lost_items" table.');
+    }
   } catch (err) {
-    console.warn('⚠️ Could not verify/create "lost_items" table:', err.message);
+    console.warn('⚠️ Could not verify/create/patch "lost_items" table:', err.message);
   }
 
   // Inisialisasi server Hapi

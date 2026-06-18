@@ -81,6 +81,8 @@ interface LostItem {
   lokasi_ditemukan?: string;
   status: 'Lost' | 'Claimed';
   foto_barang?: string;
+  kode_barang?: string;
+  foto_ktp?: string;
   nama_pemilik?: string;
   nomor_telepon_pemilik?: string;
   tanggal_diambil?: string;
@@ -162,7 +164,7 @@ export default function LostFoundPage() {
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraMode, setCameraMode] = useState<'add' | 'edit'>('add');
+  const [cameraMode, setCameraMode] = useState<'add' | 'edit' | 'claim' | 'edit_ktp'>('add');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -181,6 +183,7 @@ export default function LostFoundPage() {
     menit_ditemukan: getCurrentMinuteString(),
     lokasi_ditemukan: '',
     foto_barang: '',
+    kode_barang: '',
   });
 
   const [editForm, setEditForm] = useState({
@@ -192,6 +195,8 @@ export default function LostFoundPage() {
     lokasi_ditemukan: '',
     status: 'Lost' as 'Lost' | 'Claimed',
     foto_barang: '',
+    kode_barang: '',
+    foto_ktp: '',
     nama_pemilik: '',
     nomor_telepon_pemilik: '',
     tanggal_diambil: '',
@@ -205,6 +210,7 @@ export default function LostFoundPage() {
     tanggal_diambil: getTodayDateString(),
     jam_diambil: getCurrentHourString(),
     menit_diambil: getCurrentMinuteString(),
+    foto_ktp: '',
   });
 
   // Headers config
@@ -247,7 +253,7 @@ export default function LostFoundPage() {
   }, []);
 
   // Camera functions
-  const startCameraStream = async (mode: 'add' | 'edit') => {
+  const startCameraStream = async (mode: 'add' | 'edit' | 'claim' | 'edit_ktp') => {
     setCameraMode(mode);
     setCameraError(null);
     setIsCameraActive(true);
@@ -301,8 +307,12 @@ export default function LostFoundPage() {
 
         if (cameraMode === 'add') {
           setAddForm({ ...addForm, foto_barang: base64 });
-        } else {
+        } else if (cameraMode === 'edit') {
           setEditForm({ ...editForm, foto_barang: base64 });
+        } else if (cameraMode === 'claim') {
+          setClaimForm({ ...claimForm, foto_ktp: base64 });
+        } else if (cameraMode === 'edit_ktp') {
+          setEditForm({ ...editForm, foto_ktp: base64 });
         }
       }
       stopCameraStream();
@@ -336,6 +346,7 @@ export default function LostFoundPage() {
         tanggal_ditemukan: `${addForm.tanggal_ditemukan}T${addForm.jam_ditemukan}:${addForm.menit_ditemukan}:00`,
         lokasi_ditemukan: addForm.lokasi_ditemukan,
         foto_barang: addForm.foto_barang,
+        kode_barang: addForm.kode_barang,
       };
 
       const response = await fetch(`${API_BASE_URL}/lost-items`, {
@@ -356,6 +367,7 @@ export default function LostFoundPage() {
         menit_ditemukan: getCurrentMinuteString(),
         lokasi_ditemukan: '',
         foto_barang: '',
+        kode_barang: '',
       });
       fetchItems();
     } catch (err) {
@@ -385,6 +397,8 @@ export default function LostFoundPage() {
         lokasi_ditemukan: editForm.lokasi_ditemukan,
         status: editForm.status,
         foto_barang: editForm.foto_barang,
+        kode_barang: editForm.kode_barang,
+        foto_ktp: editForm.status === 'Claimed' ? editForm.foto_ktp : null,
         nama_pemilik: editForm.nama_pemilik,
         nomor_telepon_pemilik: editForm.nomor_telepon_pemilik,
         tanggal_diambil: editForm.status === 'Claimed' && editForm.tanggal_diambil
@@ -428,6 +442,7 @@ export default function LostFoundPage() {
         nama_pemilik: claimForm.nama_pemilik,
         nomor_telepon_pemilik: claimForm.nomor_telepon_pemilik,
         tanggal_diambil: `${claimForm.tanggal_diambil}T${claimForm.jam_diambil}:${claimForm.menit_diambil}:00`,
+        foto_ktp: claimForm.foto_ktp,
       };
 
       const response = await fetch(`${API_BASE_URL}/lost-items/${selectedItem.id}`, {
@@ -446,6 +461,7 @@ export default function LostFoundPage() {
         tanggal_diambil: getTodayDateString(),
         jam_diambil: getCurrentHourString(),
         menit_diambil: getCurrentMinuteString(),
+        foto_ktp: '',
       });
       fetchItems();
     } catch (err) {
@@ -485,6 +501,7 @@ export default function LostFoundPage() {
 
     const headers = [
       'No',
+      'Kode Barang',
       'Nama Barang',
       'Deskripsi',
       'Tanggal Ditemukan',
@@ -497,6 +514,7 @@ export default function LostFoundPage() {
 
     const rows = filteredItems.map((item, index) => [
       String(index + 1),
+      item.kode_barang || '',
       item.nama_barang,
       item.deskripsi || '',
       formatDateTime(item.tanggal_ditemukan),
@@ -537,7 +555,7 @@ export default function LostFoundPage() {
     toast.success('Laporan barang temuan berhasil diekspor');
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mode: 'add' | 'edit') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mode: 'add' | 'edit' | 'claim' | 'edit_ktp') => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -549,8 +567,12 @@ export default function LostFoundPage() {
         const base64 = event.target?.result as string;
         if (mode === 'add') {
           setAddForm({ ...addForm, foto_barang: base64 });
-        } else {
+        } else if (mode === 'edit') {
           setEditForm({ ...editForm, foto_barang: base64 });
+        } else if (mode === 'claim') {
+          setClaimForm({ ...claimForm, foto_ktp: base64 });
+        } else if (mode === 'edit_ktp') {
+          setEditForm({ ...editForm, foto_ktp: base64 });
         }
       };
       reader.readAsDataURL(file);
@@ -570,6 +592,8 @@ export default function LostFoundPage() {
       lokasi_ditemukan: item.lokasi_ditemukan || '',
       status: item.status,
       foto_barang: item.foto_barang || '',
+      kode_barang: item.kode_barang || '',
+      foto_ktp: item.foto_ktp || '',
       nama_pemilik: item.nama_pemilik || '',
       nomor_telepon_pemilik: item.nomor_telepon_pemilik || '',
       tanggal_diambil: claimed.date || getTodayDateString(),
@@ -791,7 +815,14 @@ export default function LostFoundPage() {
                                 )}
                               </div>
                               <div>
-                                <p className="font-semibold">{item.nama_barang}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold">{item.nama_barang}</p>
+                                  {item.kode_barang && (
+                                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-mono border-red-200 text-red-600 bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:bg-red-950/20">
+                                      {item.kode_barang}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground line-clamp-1">
                                   {item.deskripsi || 'Tidak ada deskripsi'}
                                 </p>
@@ -826,6 +857,17 @@ export default function LostFoundPage() {
                                   <Phone className="h-3 w-3 text-muted-foreground" />
                                   {item.nomor_telepon_pemilik}
                                 </p>
+                                {item.foto_ktp ? (
+                                  <div
+                                    onClick={() => item.foto_ktp && openPhotoPreview(item.foto_ktp)}
+                                    className="inline-flex items-center gap-1 text-[10px] text-green-600 hover:text-green-700 cursor-pointer mt-1 font-medium bg-green-500/10 px-1 py-0.5 rounded border border-green-500/20"
+                                  >
+                                    <ImageIcon className="h-2.5 w-2.5" />
+                                    Lihat KTP
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-red-500 italic block mt-0.5">Tanpa KTP</span>
+                                )}
                               </div>
                             ) : (
                               '-'
@@ -895,7 +937,14 @@ export default function LostFoundPage() {
 
                       {/* Header */}
                       <CardHeader className="p-4 pb-2 flex-grow space-y-1">
-                        <CardTitle className="text-base font-bold line-clamp-1">{item.nama_barang}</CardTitle>
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-base font-bold line-clamp-1">{item.nama_barang}</CardTitle>
+                          {item.kode_barang && (
+                            <Badge variant="outline" className="px-1.5 py-0 text-[9px] font-mono border-red-200 text-red-600 bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:bg-red-950/20 flex-shrink-0">
+                              {item.kode_barang}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {item.deskripsi || 'Tidak ada deskripsi.'}
                         </p>
@@ -929,6 +978,21 @@ export default function LostFoundPage() {
                               <Calendar className="h-3 w-3 text-muted-foreground" />
                               Tgl Ambil: {formatDateTime(item.tanggal_diambil)}
                             </p>
+                            {item.foto_ktp ? (
+                              <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800">
+                                <span className="text-[10px] text-muted-foreground">Scan KTP:</span>
+                                <div
+                                  onClick={() => item.foto_ktp && openPhotoPreview(item.foto_ktp)}
+                                  className="w-12 h-8 rounded border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 flex-shrink-0 bg-white dark:bg-slate-950 flex items-center justify-center"
+                                >
+                                  <img src={item.foto_ktp} alt="KTP" className="w-full h-full object-cover" />
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-red-500 italic mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800">
+                                Tanpa Scan KTP
+                              </p>
+                            )}
                           </div>
                         )}
                       </CardContent>
@@ -988,6 +1052,16 @@ export default function LostFoundPage() {
                   placeholder="Contoh: Kacamata Renang Hitam"
                   value={addForm.nama_barang}
                   onChange={(e) => setAddForm({ ...addForm, nama_barang: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="addCode">Label / Kode Barang</Label>
+                <Input
+                  id="addCode"
+                  placeholder="Contoh: kc1 (Kosongkan untuk auto-generate)"
+                  value={addForm.kode_barang}
+                  onChange={(e) => setAddForm({ ...addForm, kode_barang: e.target.value })}
                 />
               </div>
 
@@ -1134,6 +1208,16 @@ export default function LostFoundPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="editCode">Label / Kode Barang</Label>
+                <Input
+                  id="editCode"
+                  placeholder="Contoh: kc1"
+                  value={editForm.kode_barang}
+                  onChange={(e) => setEditForm({ ...editForm, kode_barang: e.target.value })}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-1">
                   <Label htmlFor="editDate">Tanggal Ditemukan <span className="text-red-500">*</span></Label>
@@ -1271,6 +1355,63 @@ export default function LostFoundPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Foto KTP Edit */}
+                  <div className="space-y-2 col-span-2 border-t pt-3 mt-3">
+                    <Label>Foto / Scan KTP Penerima</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-24 h-16 rounded-md border-2 border-dashed flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900 flex-shrink-0">
+                        {editForm.foto_ktp ? (
+                          <img
+                            src={editForm.foto_ktp}
+                            alt="Preview KTP"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="editKtpImageInput"
+                          className="hidden"
+                          onChange={(e) => handleFileChange(e, 'edit_ktp')}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById('editKtpImageInput')?.click()}
+                          >
+                            <Upload className="h-3.5 w-3.5 mr-1.5" />
+                            Pilih File
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => startCameraStream('edit_ktp')}
+                          >
+                            <Camera className="h-3.5 w-3.5 mr-1.5" />
+                            Ambil Foto
+                          </Button>
+                          {editForm.foto_ktp && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setEditForm({ ...editForm, foto_ktp: '' })}
+                            >
+                              Hapus
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1405,6 +1546,63 @@ export default function LostFoundPage() {
                     >
                       {minuteOptions.map(m => <option key={m} value={m} className="bg-background text-foreground">{m}</option>)}
                     </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Foto KTP Upload/Camera */}
+              <div className="space-y-2 border-t pt-3 mt-3">
+                <Label>Foto / Scan KTP Penerima</Label>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-24 h-16 rounded-md border-2 border-dashed flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900 flex-shrink-0">
+                    {claimForm.foto_ktp ? (
+                      <img
+                        src={claimForm.foto_ktp}
+                        alt="Preview KTP"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="claimKtpImageInput"
+                      className="hidden"
+                      onChange={(e) => handleFileChange(e, 'claim')}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('claimKtpImageInput')?.click()}
+                      >
+                        <Upload className="h-3.5 w-3.5 mr-1.5" />
+                        Pilih File
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startCameraStream('claim')}
+                      >
+                        <Camera className="h-3.5 w-3.5 mr-1.5" />
+                        Ambil Foto
+                      </Button>
+                      {claimForm.foto_ktp && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setClaimForm({ ...claimForm, foto_ktp: '' })}
+                        >
+                          Hapus
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
