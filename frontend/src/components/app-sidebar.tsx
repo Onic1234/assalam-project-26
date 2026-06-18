@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   BarChart3,
   LogIn,
+  LogOut,
   CreditCard,
   Ticket,
   Settings,
@@ -192,6 +193,15 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
   const { isMobile, setOpen: setSidebarOpen } = useSidebar();
   const [authData, setAuthData] = useState<AuthData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAssetPortal, setIsAssetPortal] = useState(false);
+  const [isAssetAuth, setIsAssetAuth] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsAssetPortal(window.location.pathname.startsWith('/Admin/assets'));
+      setIsAssetAuth(sessionStorage.getItem('asset_authenticated') === 'true');
+    }
+  }, []);
 
   // Function to decode JWT token
   const decodeJWTToken = (token: string) => {
@@ -396,6 +406,22 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+          {/* Logout button specifically for Asset Management portal */}
+          {isAssetPortal && isAssetAuth && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Logout Asset Portal"
+                onClick={() => {
+                  sessionStorage.removeItem('asset_authenticated');
+                  window.location.reload();
+                }}
+                className="text-red-500 hover:text-red-600 hover:bg-red-50 focus:text-red-600 focus:bg-red-50"
+              >
+                <LogOut className="w-4 h-4 text-red-500" />
+                <span className="font-semibold text-red-500">Logout Asset</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarGroup>
     );

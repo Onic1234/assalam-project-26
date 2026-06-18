@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -246,7 +247,7 @@ function AssetInventoryContent() {
   const renderStatusBadge = (status: AssetData['status_maintenance'], asset: AssetData) => {
     const isInteractive = status === 'Pending' || status === 'Done';
     let badgeClass = 'cursor-default';
-    let label = status;
+    let label: string = status;
 
     if (status === 'Pending') {
       badgeClass = 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200 cursor-pointer';
@@ -289,10 +290,24 @@ function AssetInventoryContent() {
               AOPS Asset Inventory
             </h1>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchAssets} className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Reload Data
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchAssets} className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Reload Data
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                sessionStorage.removeItem('asset_authenticated');
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout Asset
+            </Button>
+          </div>
         </div>
       </header>
 
