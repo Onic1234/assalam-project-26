@@ -40,6 +40,22 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT("long"),
         allowNull: true,
       },
+      kode_barang: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      foto_ktp: {
+        type: DataTypes.TEXT("long"),
+        allowNull: true,
+      },
+      petugas_input: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      petugas_klaim: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       nama_pemilik: {
         type: DataTypes.STRING,
         allowNull: true,

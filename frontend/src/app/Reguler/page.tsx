@@ -189,7 +189,9 @@ export default function RegulerPage() {
 
       if (paymentMethod === 'qris') {
         setShowQrisModal(true);
+        setIsLoading(false); // Reset loading agar modal/tombol interaktif
       } else {
+        // Biarkan isLoading tetap true agar tombol submit tidak bisa diklik lagi selama menunggu redirect
         setTimeout(() => {
           router.push(
             `/Receipt?data=${encodeURIComponent(
@@ -203,8 +205,7 @@ export default function RegulerPage() {
         message: error.message || 'Tidak dapat terhubung ke server.',
         success: false,
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Reset loading jika gagal agar pengguna bisa mencoba lagi
     }
   };
 

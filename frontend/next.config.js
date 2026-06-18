@@ -21,6 +21,15 @@ const nextConfig = {
   experimental: {
     allowedDevOrigins: ["assalam-canteen.loca.lt", "192.168.1.137:3001"],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

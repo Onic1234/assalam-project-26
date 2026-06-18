@@ -122,7 +122,6 @@ export default function SantriManagementPage() {
   const [formData, setFormData] = useState({
     id_santri: '',
     nama_santri: '',
-    email: '',
     jenis_kelamin: 'L' as 'L' | 'P',
     kelas: '',
     unit: 'SMP',
@@ -273,7 +272,6 @@ export default function SantriManagementPage() {
       setFormData({
         id_santri: '',
         nama_santri: '',
-        email: '',
         jenis_kelamin: 'L',
         kelas: '',
         unit: 'SMP',
@@ -353,7 +351,6 @@ export default function SantriManagementPage() {
     setFormData({
       id_santri: santri.id_santri,
       nama_santri: santri.nama_santri,
-      email: santri.email,
       jenis_kelamin: santri.jenis_kelamin,
       kelas: santri.kelas,
       unit: santri.unit,

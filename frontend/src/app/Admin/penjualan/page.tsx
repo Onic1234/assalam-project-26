@@ -39,6 +39,7 @@ import {
   Wallet, // Ikon untuk Tunai
   QrCode, // Ikon untuk QRIS
   FileSpreadsheet, // Ikon untuk ekspor Excel
+  Coins, // Ikon untuk pendapatan
 } from "lucide-react";
 
 // Definisi base URL untuk API
@@ -69,6 +70,10 @@ export default function PenjualanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false); // <-- State baru untuk loading ekspor
+  const [ticketPrices, setTicketPrices] = useState<{
+    reguler: number;
+    staff: number;
+  }>({ reguler: 25000, staff: 15000 }); // Default fallbacks
 
   // State untuk semua kontrol filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -172,7 +177,7 @@ export default function PenjualanPage() {
               quantity: sale.Kuantitas,
               paymentMethod: (
                 sale.Metode_Pembayaran || "cash"
-              ).toLowerCase() as Visitor["paymentMethod"],
+              ).toLowerCase() === "qris" ? "qris" : "cash",
             })
           );
           setVisitors(formattedVisitors);
@@ -188,6 +193,38 @@ export default function PenjualanPage() {
     };
 
     fetchVisitors();
+  }, []);
+
+  // Fetch ticket prices for revenue calculation
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+        const response = await fetch(`${API_BASE_URL}/ticketing/prices`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const prices = await response.json();
+          const pricesObj = { reguler: 25000, staff: 15000 };
+          prices.forEach((p: any) => {
+            const finalPrice = p.harga * (1 - (p.discountPercentage || 0) / 100);
+            if (p.kategori === "Reguler") {
+              pricesObj.reguler = finalPrice;
+            } else if (p.kategori === "Staff") {
+              pricesObj.staff = finalPrice;
+            }
+          });
+          setTicketPrices(pricesObj);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil harga tiket:", err);
+      }
+    };
+
+    fetchPrices();
   }, []);
 
   // --- HANDLER UNTUK KONTROL FILTER ---
@@ -357,6 +394,143 @@ export default function PenjualanPage() {
       return acc;
     }, stats);
   }, [finalFilteredVisitors]); // Bergantung pada data yang sudah difilter
+
+  // Filter data untuk statistik periode (mengabaikan filter tanggal agar data periode tetap utuh)
+  const categoryAndSearchFiltered = useMemo(() => {
+    return visitors.filter((visitor) => {
+      const searchMatch =
+        visitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getPaymentMethodLabel(visitor.paymentMethod)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+
+      const categoryMatch = selectedCategory
+        ? visitor.category === selectedCategory
+        : true;
+
+      return searchMatch && categoryMatch;
+    });
+  }, [visitors, searchTerm, selectedCategory]);
+
+  // Definisikan tanggal awal/akhir untuk setiap periode
+  const periods = useMemo(() => {
+    const now = new Date();
+    
+    // Today
+    const todayStr = formatDate(now);
+    
+    // This Week (Senin - Minggu)
+    const currentDay = now.getDay();
+    const firstDayOfWeek = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - currentDay + (currentDay === 0 ? -6 : 1)
+    );
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(lastDayOfWeek.getDate() + 6);
+    const thisWeekStart = formatDate(firstDayOfWeek);
+    const thisWeekEnd = formatDate(lastDayOfWeek);
+    
+    // This Month
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const thisMonthStart = formatDate(firstDayOfMonth);
+    const thisMonthEnd = formatDate(lastDayOfMonth);
+    
+    // This Year
+    const thisYearStart = `${now.getFullYear()}-01-01`;
+    const thisYearEnd = `${now.getFullYear()}-12-31`;
+
+    return {
+      today: todayStr,
+      weekStart: thisWeekStart,
+      weekEnd: thisWeekEnd,
+      monthStart: thisMonthStart,
+      monthEnd: thisMonthEnd,
+      yearStart: thisYearStart,
+      yearEnd: thisYearEnd,
+    };
+  }, []);
+
+  // Hitung statistik transaksi (pendapatan) untuk 4 periode
+  const periodStats = useMemo(() => {
+    const stats = {
+      today: { total: 0, cash: 0, qris: 0 },
+      week: { total: 0, cash: 0, qris: 0 },
+      month: { total: 0, cash: 0, qris: 0 },
+      year: { total: 0, cash: 0, qris: 0 },
+    };
+
+    categoryAndSearchFiltered.forEach((visitor) => {
+      let price = 0;
+      if (visitor.category === "reguler") {
+        price = ticketPrices.reguler;
+      } else if (visitor.category === "staff") {
+        price = ticketPrices.staff;
+      }
+      const amount = visitor.quantity * price;
+      const date = visitor.date;
+      const isQris = visitor.paymentMethod === "qris";
+
+      // Today
+      if (date === periods.today) {
+        stats.today.total += amount;
+        if (isQris) stats.today.qris += amount;
+        else stats.today.cash += amount;
+      }
+      // This Week
+      if (date >= periods.weekStart && date <= periods.weekEnd) {
+        stats.week.total += amount;
+        if (isQris) stats.week.qris += amount;
+        else stats.week.cash += amount;
+      }
+      // This Month
+      if (date >= periods.monthStart && date <= periods.monthEnd) {
+        stats.month.total += amount;
+        if (isQris) stats.month.qris += amount;
+        else stats.month.cash += amount;
+      }
+      // This Year
+      if (date >= periods.yearStart && date <= periods.yearEnd) {
+        stats.year.total += amount;
+        if (isQris) stats.year.qris += amount;
+        else stats.year.cash += amount;
+      }
+    });
+
+    return stats;
+  }, [categoryAndSearchFiltered, ticketPrices, periods]);
+
+  // 4. Menghitung statistik transaksi untuk pilihan/filter aktif saat ini
+  const transactionStats = useMemo(() => {
+    let totalRevenue = 0;
+    let cashRevenue = 0;
+    let qrisRevenue = 0;
+
+    finalFilteredVisitors.forEach((visitor) => {
+      let price = 0;
+      if (visitor.category === "reguler") {
+        price = ticketPrices.reguler;
+      } else if (visitor.category === "staff") {
+        price = ticketPrices.staff;
+      }
+      
+      const amount = visitor.quantity * price;
+      totalRevenue += amount;
+      
+      if (visitor.paymentMethod === "cash") {
+        cashRevenue += amount;
+      } else if (visitor.paymentMethod === "qris") {
+        qrisRevenue += amount;
+      }
+    });
+
+    return {
+      total: totalRevenue,
+      cash: cashRevenue,
+      qris: qrisRevenue,
+    };
+  }, [finalFilteredVisitors, ticketPrices]);
 
   // --- TAMPILAN / JSX ---
   if (loading) {
@@ -567,6 +741,107 @@ export default function PenjualanPage() {
             </Card>
           </div>
 
+          {/* --- STATISTIK KEUANGAN --- */}
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-muted-foreground">Statistik Pendapatan</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {/* Berdasarkan Filter */}
+              <Card className="bg-slate-900 text-slate-50 border-slate-800 dark:bg-slate-950 dark:border-slate-800 shadow-md ring-2 ring-slate-800/10">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Berdasarkan Filter
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-amber-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-white">
+                    Rp {transactionStats.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3 text-slate-300" /> Tunai: Rp {transactionStats.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3 text-slate-300" /> QRIS: Rp {transactionStats.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Hari Ini */}
+              <Card className="bg-green-50/50 dark:bg-green-950/10 border-green-100 dark:border-green-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-green-800 dark:text-green-300 uppercase tracking-wider">
+                    Hari Ini
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-green-700 dark:text-green-200">
+                    Rp {periodStats.today.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.today.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.today.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Minggu Ini */}
+              <Card className="bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                    Minggu Ini
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-blue-700 dark:text-blue-200">
+                    Rp {periodStats.week.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.week.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.week.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bulan Ini */}
+              <Card className="bg-purple-50/50 dark:bg-purple-950/10 border-purple-100 dark:border-purple-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-purple-800 dark:text-purple-300 uppercase tracking-wider">
+                    Bulan Ini
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-purple-700 dark:text-purple-200">
+                    Rp {periodStats.month.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.month.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.month.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tahun Ini */}
+              <Card className="bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                    Tahun Ini
+                  </CardTitle>
+                  <Coins className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-xl font-bold text-amber-700 dark:text-amber-200">
+                    Rp {periodStats.year.total.toLocaleString("id-ID")}
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Tunai: Rp {periodStats.year.cash.toLocaleString("id-ID")}</span>
+                    <span className="flex items-center gap-1"><QrCode className="h-3 w-3" /> QRIS: Rp {periodStats.year.qris.toLocaleString("id-ID")}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Rincian Penjualan</CardTitle>
@@ -587,12 +862,13 @@ export default function PenjualanPage() {
                       <TableHead>Kategori</TableHead>
                       <TableHead>Metode Pembayaran</TableHead>
                       <TableHead>Kuantitas</TableHead>
+                      <TableHead className="text-right font-semibold">Total Harga</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {!error && finalFilteredVisitors.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
+                        <TableCell colSpan={6} className="text-center py-8">
                           {visitors.length > 0
                             ? "Tidak ada data yang cocok dengan filter Anda."
                             : "Tidak ada data penjualan yang ditemukan."}
@@ -632,6 +908,17 @@ export default function PenjualanPage() {
                             </div>
                           </TableCell>
                           <TableCell>{visitor.quantity}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            Rp {(() => {
+                              let price = 0;
+                              if (visitor.category === "reguler") {
+                                price = ticketPrices.reguler;
+                              } else if (visitor.category === "staff") {
+                                price = ticketPrices.staff;
+                              }
+                              return (visitor.quantity * price).toLocaleString("id-ID");
+                            })()}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
