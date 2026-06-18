@@ -186,6 +186,7 @@ export default function LostFoundPage() {
     lokasi_ditemukan: '',
     foto_barang: '',
     kode_barang: '',
+    petugas_input: '',
   });
 
   const [editForm, setEditForm] = useState({
@@ -199,6 +200,8 @@ export default function LostFoundPage() {
     foto_barang: '',
     kode_barang: '',
     foto_ktp: '',
+    petugas_input: '',
+    petugas_klaim: '',
     nama_pemilik: '',
     nomor_telepon_pemilik: '',
     tanggal_diambil: '',
@@ -213,6 +216,7 @@ export default function LostFoundPage() {
     jam_diambil: getCurrentHourString(),
     menit_diambil: getCurrentMinuteString(),
     foto_ktp: '',
+    petugas_klaim: '',
   });
 
   // Headers config
@@ -349,6 +353,7 @@ export default function LostFoundPage() {
         lokasi_ditemukan: addForm.lokasi_ditemukan,
         foto_barang: addForm.foto_barang,
         kode_barang: addForm.kode_barang,
+        petugas_input: addForm.petugas_input,
       };
 
       const response = await fetch(`${API_BASE_URL}/lost-items`, {
@@ -370,6 +375,7 @@ export default function LostFoundPage() {
         lokasi_ditemukan: '',
         foto_barang: '',
         kode_barang: '',
+        petugas_input: '',
       });
       fetchItems();
     } catch (err) {
@@ -401,6 +407,8 @@ export default function LostFoundPage() {
         foto_barang: editForm.foto_barang,
         kode_barang: editForm.kode_barang,
         foto_ktp: editForm.status === 'Claimed' ? editForm.foto_ktp : null,
+        petugas_input: editForm.petugas_input,
+        petugas_klaim: editForm.status === 'Claimed' ? editForm.petugas_klaim : null,
         nama_pemilik: editForm.nama_pemilik,
         nomor_telepon_pemilik: editForm.nomor_telepon_pemilik,
         tanggal_diambil: editForm.status === 'Claimed' && editForm.tanggal_diambil
@@ -445,6 +453,7 @@ export default function LostFoundPage() {
         nomor_telepon_pemilik: claimForm.nomor_telepon_pemilik,
         tanggal_diambil: `${claimForm.tanggal_diambil}T${claimForm.jam_diambil}:${claimForm.menit_diambil}:00`,
         foto_ktp: claimForm.foto_ktp,
+        petugas_klaim: claimForm.petugas_klaim,
       };
 
       const response = await fetch(`${API_BASE_URL}/lost-items/${selectedItem.id}`, {
@@ -464,6 +473,7 @@ export default function LostFoundPage() {
         jam_diambil: getCurrentHourString(),
         menit_diambil: getCurrentMinuteString(),
         foto_ktp: '',
+        petugas_klaim: '',
       });
       fetchItems();
     } catch (err) {
@@ -585,10 +595,27 @@ export default function LostFoundPage() {
     }
   };
 
+  const openAddDialog = () => {
+    const storedName = typeof window !== 'undefined' ? localStorage.getItem('userName') || '' : '';
+    setAddForm({
+      nama_barang: '',
+      deskripsi: '',
+      tanggal_ditemukan: getTodayDateString(),
+      jam_ditemukan: getCurrentHourString(),
+      menit_ditemukan: getCurrentMinuteString(),
+      lokasi_ditemukan: '',
+      foto_barang: '',
+      kode_barang: '',
+      petugas_input: storedName,
+    });
+    setIsAddOpen(true);
+  };
+
   const openEditDialog = (item: LostItem) => {
     setSelectedItem(item);
     const found = parseDateAndTime(item.tanggal_ditemukan);
     const claimed = parseDateAndTime(item.tanggal_diambil);
+    const storedName = typeof window !== 'undefined' ? localStorage.getItem('userName') || '' : '';
     setEditForm({
       nama_barang: item.nama_barang,
       deskripsi: item.deskripsi || '',
@@ -600,6 +627,8 @@ export default function LostFoundPage() {
       foto_barang: item.foto_barang || '',
       kode_barang: item.kode_barang || '',
       foto_ktp: item.foto_ktp || '',
+      petugas_input: item.petugas_input || '',
+      petugas_klaim: item.petugas_klaim || storedName,
       nama_pemilik: item.nama_pemilik || '',
       nomor_telepon_pemilik: item.nomor_telepon_pemilik || '',
       tanggal_diambil: claimed.date || getTodayDateString(),
@@ -610,7 +639,17 @@ export default function LostFoundPage() {
   };
 
   const openClaimDialog = (item: LostItem) => {
+    const storedName = typeof window !== 'undefined' ? localStorage.getItem('userName') || '' : '';
     setSelectedItem(item);
+    setClaimForm({
+      nama_pemilik: '',
+      nomor_telepon_pemilik: '',
+      tanggal_diambil: getTodayDateString(),
+      jam_diambil: getCurrentHourString(),
+      menit_diambil: getCurrentMinuteString(),
+      foto_ktp: '',
+      petugas_klaim: storedName,
+    });
     setIsClaimOpen(true);
   };
 
@@ -708,7 +747,7 @@ export default function LostFoundPage() {
           {/* Controls */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Button onClick={() => setIsAddOpen(true)} className="h-9">
+              <Button onClick={openAddDialog} className="h-9">
                 <Plus className="mr-2 h-4 w-4" />
                 Catat Barang Baru
               </Button>
@@ -1139,6 +1178,16 @@ export default function LostFoundPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="addPetugasInput">Petugas Pencatat</Label>
+                <Input
+                  id="addPetugasInput"
+                  placeholder="Nama petugas pencatat"
+                  value={addForm.petugas_input}
+                  onChange={(e) => setAddForm({ ...addForm, petugas_input: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="addDesc">Deskripsi Barang</Label>
                 <Textarea
                   id="addDesc"
@@ -1301,6 +1350,16 @@ export default function LostFoundPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="editPetugasInput">Petugas Pencatat</Label>
+                <Input
+                  id="editPetugasInput"
+                  placeholder="Nama petugas pencatat"
+                  value={editForm.petugas_input}
+                  onChange={(e) => setEditForm({ ...editForm, petugas_input: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="editStatus">Status</Label>
                 <div className="flex border rounded-lg overflow-hidden w-fit bg-background">
                   <button
@@ -1383,6 +1442,16 @@ export default function LostFoundPage() {
                         </select>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="editPetugasKlaim">Petugas Penyerah</Label>
+                    <Input
+                      id="editPetugasKlaim"
+                      placeholder="Nama petugas penyerah"
+                      value={editForm.petugas_klaim}
+                      onChange={(e) => setEditForm({ ...editForm, petugas_klaim: e.target.value })}
+                    />
                   </div>
 
                   {/* Foto KTP Edit */}
@@ -1577,6 +1646,16 @@ export default function LostFoundPage() {
                     </select>
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="claimPetugasKlaim">Petugas Penyerah</Label>
+                <Input
+                  id="claimPetugasKlaim"
+                  placeholder="Nama petugas penyerah"
+                  value={claimForm.petugas_klaim}
+                  onChange={(e) => setClaimForm({ ...claimForm, petugas_klaim: e.target.value })}
+                />
               </div>
 
               {/* Foto KTP Upload/Camera */}

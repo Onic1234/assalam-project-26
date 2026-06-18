@@ -92,6 +92,7 @@ const lostItemController = {
         nomor_telepon_pemilik,
         tanggal_diambil,
         kode_barang,
+        petugas_input,
       } = request.payload;
 
       let base64Image = null;
@@ -121,7 +122,10 @@ const lostItemController = {
         code = code.trim();
       }
 
-      const petugas_input = request.auth && request.auth.credentials ? request.auth.credentials.username : null;
+      let petugasInput = petugas_input;
+      if (!petugasInput || !petugasInput.trim()) {
+        petugasInput = request.auth && request.auth.credentials ? request.auth.credentials.username : null;
+      }
 
       const newItem = await LostItem.create({
         nama_barang: nama_barang ? nama_barang.trim() : "",
@@ -132,7 +136,7 @@ const lostItemController = {
         foto_barang: base64Image,
         kode_barang: code,
         foto_ktp: base64Ktp,
-        petugas_input,
+        petugas_input: petugasInput ? petugasInput.trim() : null,
         nama_pemilik: nama_pemilik ? nama_pemilik.trim() : null,
         nomor_telepon_pemilik: nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null,
         tanggal_diambil: tanggal_diambil || null,
@@ -228,6 +232,8 @@ const lostItemController = {
         nomor_telepon_pemilik,
         tanggal_diambil,
         kode_barang,
+        petugas_input,
+        petugas_klaim,
       } = request.payload;
 
       let base64Image = item.foto_barang;
@@ -259,17 +265,22 @@ const lostItemController = {
       if (lokasi_ditemukan !== undefined) updates.lokasi_ditemukan = lokasi_ditemukan ? lokasi_ditemukan.trim() : null;
       if (status !== undefined) updates.status = status;
       if (kode_barang !== undefined) updates.kode_barang = kode_barang ? kode_barang.trim() : null;
+      if (petugas_input !== undefined) updates.petugas_input = petugas_input ? petugas_input.trim() : null;
       if (request.payload.foto_barang !== undefined) updates.foto_barang = base64Image;
       if (request.payload.foto_ktp !== undefined) updates.foto_ktp = base64Ktp;
-
-      const petugas_klaim = request.auth && request.auth.credentials ? request.auth.credentials.username : null;
 
       // Handle claim updates if status is changed to Claimed
       if (status === "Claimed") {
         updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;
         updates.tanggal_diambil = tanggal_diambil || new Date().toISOString(); // default to current time if not provided
-        updates.petugas_klaim = petugas_klaim;
+        
+        let petugasKlaim = petugas_klaim;
+        if (!petugasKlaim || !petugasKlaim.trim()) {
+          petugasKlaim = request.auth && request.auth.credentials ? request.auth.credentials.username : null;
+        }
+        updates.petugas_klaim = petugasKlaim ? petugasKlaim.trim() : null;
+        
         if (request.payload.foto_ktp !== undefined) {
           updates.foto_ktp = base64Ktp;
         }
@@ -284,6 +295,7 @@ const lostItemController = {
         if (nama_pemilik !== undefined) updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         if (nomor_telepon_pemilik !== undefined) updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;
         if (tanggal_diambil !== undefined) updates.tanggal_diambil = tanggal_diambil || null;
+        if (petugas_klaim !== undefined) updates.petugas_klaim = petugas_klaim ? petugas_klaim.trim() : null;
       }
 
       await item.update(updates);
