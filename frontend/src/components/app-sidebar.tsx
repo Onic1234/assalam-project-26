@@ -10,6 +10,9 @@ import {
   Ticket,
   Settings,
   Archive,
+  Calendar,
+  MapPin,
+  FileText,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -83,6 +86,35 @@ const attendanceMenuItems = [
     title: 'Settings',
     url: '/Admin/settings',
     icon: Settings,
+  },
+];
+
+// Asset Management menu items
+const assetMenuItems = [
+  {
+    title: 'Asset Dashboard',
+    url: '/Admin/assets',
+    icon: BarChart3,
+  },
+  {
+    title: 'Asset Inventory',
+    url: '/Admin/assets/inventory',
+    icon: Package,
+  },
+  {
+    title: 'Maintenance Schedule',
+    url: '/Admin/assets/maintenance',
+    icon: Calendar,
+  },
+  {
+    title: 'Location Summary',
+    url: '/Admin/assets/locations',
+    icon: MapPin,
+  },
+  {
+    title: 'Asset Report',
+    url: '/Admin/assets/reports',
+    icon: FileText,
   },
 ];
 
@@ -344,6 +376,31 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
     window.location.href = '/login';
   };
 
+  // Render asset menu for logged in users
+  const renderAssetMenu = () => {
+    if (!isLoggedIn) return null;
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel>Asset Management</SidebarGroupLabel>
+        <SidebarMenu>
+          {assetMenuItems.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton tooltip={item.title} asChild>
+                <a
+                  href={item.url}
+                  onClick={() => isMobile && setSidebarOpen(false)}
+                >
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
+    );
+  };
+
   return (
     <Sidebar collapsible="icon" className={className} {...props}>
       <SidebarHeader>
@@ -352,6 +409,9 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
       <SidebarContent>
         {/* Attendance menu */}
         {renderAttendanceMenu()}
+
+        {/* Asset menu */}
+        {renderAssetMenu()}
 
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>

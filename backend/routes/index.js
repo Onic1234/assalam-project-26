@@ -23,6 +23,9 @@ const settingRoutes = require("./settingRoutes"); // Rute baru untuk pengaturan 
 // --- Rute baru untuk Lost & Found ---
 const lostItemRoutes = require("./lostItemRoutes");
 
+// --- Rute baru untuk Aset & Inventaris ---
+const assetRoutes = require("./assetRoutes");
+
 // Menggabungkan semua rute ke dalam satu array
 const routes = [
   // Rute yang sudah ada
@@ -41,6 +44,7 @@ const routes = [
   ...ticketingRoutes,
   ...settingRoutes, // Rute baru untuk pengaturan QRIS
   ...lostItemRoutes, // Rute baru untuk Lost & Found
+  ...assetRoutes, // Rute baru untuk Aset & Inventaris
 ];
 
 module.exports = routes;
