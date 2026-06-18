@@ -24,6 +24,7 @@ const assetController = {
         tahun_perolehan = "",
         bulan_maintenance = "",
         status_maintenance = "",
+        status = "",
         page = 1,
         limit = 10,
       } = request.query;
@@ -44,6 +45,10 @@ const assetController = {
 
       if (status_maintenance) {
         whereClause.status_maintenance = status_maintenance;
+      }
+
+      if (status) {
+        whereClause.status = status;
       }
 
       if (search) {
@@ -116,6 +121,11 @@ const assetController = {
       
       const totalAssets = allAssets.length;
       
+      // Calculate status counts
+      const aktifCount = allAssets.filter((a) => a.status === "Aktif").length;
+      const pasifCount = allAssets.filter((a) => a.status === "Pasif").length;
+      const nonAktifCount = allAssets.filter((a) => a.status === "Non Aktif").length;
+
       // Calculate count of assets needing maintenance (Pending status)
       const needsMaintenance = allAssets.filter(
         (a) => a.status_maintenance === "Pending"
@@ -192,6 +202,9 @@ const assetController = {
 
       const stats = {
         totalAssets,
+        aktifCount,
+        pasifCount,
+        nonAktifCount,
         needsMaintenance,
         topLocation,
         maintenanceThisMonth: monthlyMaintenanceCounts["April"] || 0, // April 2026 as the active month
@@ -247,6 +260,7 @@ const assetController = {
         umur_aktiva,
         periode_maintenance,
         status_maintenance,
+        status,
         scheduled_months,
         schedule_details,
       } = request.payload;
@@ -264,6 +278,7 @@ const assetController = {
       if (umur_aktiva !== undefined) updates.umur_aktiva = umur_aktiva;
       if (periode_maintenance !== undefined) updates.periode_maintenance = periode_maintenance;
       if (status_maintenance !== undefined) updates.status_maintenance = status_maintenance;
+      if (status !== undefined) updates.status = status;
       if (scheduled_months !== undefined) updates.scheduled_months = scheduled_months;
       if (schedule_details !== undefined) updates.schedule_details = schedule_details;
 

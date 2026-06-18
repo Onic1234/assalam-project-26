@@ -109,6 +109,27 @@ const init = async () => {
     console.warn('⚠️ Could not verify/create/patch "lost_items" table:', err.message);
   }
 
+  // Ensure 'assets' table and columns exist (compatibility patch for case-sensitive databases)
+  try {
+    const { Asset } = require("./models");
+    await Asset.sync();
+    console.log('✅ Table "assets" verified/created.');
+
+    const queryInterface = sequelize.getQueryInterface();
+    const tableDefinition = await queryInterface.describeTable('assets');
+
+    if (!tableDefinition.status) {
+      await queryInterface.addColumn('assets', 'status', {
+        type: Sequelize.ENUM("Aktif", "Pasif", "Non Aktif"),
+        allowNull: false,
+        defaultValue: "Aktif",
+      });
+      console.log('✅ Column "status" successfully added to "assets" table.');
+    }
+  } catch (err) {
+    console.warn('⚠️ Could not verify/create/patch "assets" table:', err.message);
+  }
+
   // Inisialisasi server Hapi
   const server = Hapi.server({
     port: process.env.PORT || 3001,

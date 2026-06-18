@@ -47,6 +47,7 @@ interface AssetData {
   periode_maintenance: string | null;
   scheduled_months: string[] | string;
   status_maintenance: 'No Maintenance' | 'Scheduled' | 'Pending' | 'Done' | 'Overdue';
+  status: 'Aktif' | 'Pasif' | 'Non Aktif';
 }
 
 const CATEGORIES = ['Utility', 'Furniture', 'Mekanikal', 'Elektronik', 'Mesin'];
@@ -94,6 +95,7 @@ function AssetInventoryContent() {
   const [selectedLocation, setSelectedLocation] = useState<string>(initialLokasi);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Update selection if searchParams change
   useEffect(() => {
@@ -134,6 +136,7 @@ function AssetInventoryContent() {
       if (selectedLocation !== 'all') params.append('lokasi', selectedLocation);
       if (selectedYear !== 'all') params.append('tahun_perolehan', selectedYear);
       if (selectedMonth !== 'all') params.append('bulan_maintenance', selectedMonth);
+      if (selectedStatus !== 'all') params.append('status', selectedStatus);
 
       const response = await fetch(`${API_BASE_URL}/assets?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -162,7 +165,7 @@ function AssetInventoryContent() {
   // Trigger fetch when parameters change
   useEffect(() => {
     fetchAssets();
-  }, [currentPage, selectedCategory, selectedLocation, selectedYear, selectedMonth]);
+  }, [currentPage, selectedCategory, selectedLocation, selectedYear, selectedMonth, selectedStatus]);
 
   // Debounced search trigger
   useEffect(() => {
@@ -172,6 +175,53 @@ function AssetInventoryContent() {
     }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
+  // Handle Asset Status Cycle (Aktif -> Pasif -> Non Aktif -> Aktif)
+  const toggleAssetStatus = async (asset: AssetData) => {
+    let nextStatus: AssetData['status'] = 'Aktif';
+    if (asset.status === 'Aktif') {
+      nextStatus = 'Pasif';
+    } else if (asset.status === 'Pasif') {
+      nextStatus = 'Non Aktif';
+    } else if (asset.status === 'Non Aktif') {
+      nextStatus = 'Aktif';
+    } else {
+      nextStatus = 'Pasif';
+    }
+
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/assets/${asset.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update asset status');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Status aset "${asset.nama}" diubah menjadi ${nextStatus}`);
+        
+        // Optimistic UI update
+        setAssets(prev =>
+          prev.map(a => (a.id === asset.id ? { ...a, status: nextStatus } : a))
+        );
+      } else {
+        throw new Error(data.message || 'Failed to update asset status');
+      }
+    } catch (error) {
+      console.error('Error updating asset status:', error);
+      toast.error('Gagal memperbarui status aset');
+    }
+  };
 
   // Handle Maintenance Status Toggle
   const toggleMaintenanceStatus = async (asset: AssetData) => {
@@ -225,6 +275,7 @@ function AssetInventoryContent() {
     setSelectedLocation('all');
     setSelectedYear('all');
     setSelectedMonth('all');
+    setSelectedStatus('all');
     setCurrentPage(1);
   };
 
@@ -233,7 +284,8 @@ function AssetInventoryContent() {
     selectedCategory !== 'all' ||
     selectedLocation !== 'all' ||
     selectedYear !== 'all' ||
-    selectedMonth !== 'all';
+    selectedMonth !== 'all' ||
+    selectedStatus !== 'all';
 
   const formatCurrency = (amount: number | null) => {
     if (amount === null) return '-';
@@ -242,6 +294,32 @@ function AssetInventoryContent() {
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  const renderAssetStatusBadge = (status: AssetData['status'], asset: AssetData) => {
+    let badgeClass = 'cursor-pointer hover:opacity-80 transition-opacity';
+    let label = status || 'Aktif';
+
+    if (status === 'Aktif') {
+      badgeClass += ' bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+    } else if (status === 'Pasif') {
+      badgeClass += ' bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100';
+    } else if (status === 'Non Aktif') {
+      badgeClass += ' bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100';
+    } else {
+      badgeClass += ' bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+      label = 'Aktif';
+    }
+
+    return (
+      <Badge
+        variant="outline"
+        className={`px-3 py-1 text-xs font-semibold rounded-full select-none ${badgeClass}`}
+        onClick={() => toggleAssetStatus(asset)}
+      >
+        {label}
+      </Badge>
+    );
   };
 
   const renderStatusBadge = (status: AssetData['status_maintenance'], asset: AssetData) => {
@@ -322,7 +400,7 @@ function AssetInventoryContent() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                 {/* Search Bar */}
                 <div className="relative col-span-1 md:col-span-2 lg:col-span-1">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -393,6 +471,21 @@ function AssetInventoryContent() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Status Filter */}
+                <div>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Status Aset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="Aktif">Aktif</SelectItem>
+                      <SelectItem value="Pasif">Pasif (Rusak/Tidak Digunakan)</SelectItem>
+                      <SelectItem value="Non Aktif">Non Aktif (Dihapus)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {hasActiveFilters && (
@@ -424,6 +517,11 @@ function AssetInventoryContent() {
                     {selectedMonth !== 'all' && (
                       <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border border-blue-100">
                         Bulan Maint: {selectedMonth}
+                      </Badge>
+                    )}
+                    {selectedStatus !== 'all' && (
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border border-blue-100">
+                        Status: {selectedStatus}
                       </Badge>
                     )}
                     <Button
@@ -466,13 +564,14 @@ function AssetInventoryContent() {
                     <th className="p-4 font-bold">Vendor</th>
                     <th className="p-4 font-bold text-center">Tahun</th>
                     <th className="p-4">Periode Maintenance</th>
+                    <th className="p-4 text-center">Status Aset</th>
                     <th className="p-4 text-center">Status Maintenance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="p-12 text-center">
+                      <td colSpan={9} className="p-12 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
                           <span className="text-gray-400 text-sm font-medium">Loading inventory data...</span>
@@ -481,7 +580,7 @@ function AssetInventoryContent() {
                     </tr>
                   ) : assets.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-12 text-center text-gray-500 font-medium">
+                      <td colSpan={9} className="p-12 text-center text-gray-500 font-medium">
                         Tidak ada aset yang cocok dengan kriteria filter.
                       </td>
                     </tr>
@@ -506,6 +605,9 @@ function AssetInventoryContent() {
                         <td className="p-4 text-xs text-gray-500 max-w-[150px] truncate">{asset.vendor || '-'}</td>
                         <td className="p-4 text-center whitespace-nowrap">{asset.tahun_perolehan || '-'}</td>
                         <td className="p-4 text-xs font-medium text-slate-600 whitespace-nowrap">{asset.periode_maintenance || 'N/A'}</td>
+                        <td className="p-4 text-center whitespace-nowrap">
+                          {renderAssetStatusBadge(asset.status, asset)}
+                        </td>
                         <td className="p-4 text-center whitespace-nowrap">
                           {renderStatusBadge(asset.status_maintenance, asset)}
                         </td>
