@@ -83,6 +83,8 @@ interface LostItem {
   foto_barang?: string;
   kode_barang?: string;
   foto_ktp?: string;
+  petugas_input?: string;
+  petugas_klaim?: string;
   nama_pemilik?: string;
   nomor_telepon_pemilik?: string;
   tanggal_diambil?: string;
@@ -507,9 +509,11 @@ export default function LostFoundPage() {
       'Tanggal Ditemukan',
       'Lokasi Ditemukan',
       'Status',
+      'Petugas Pencatat',
       'Nama Penerima',
       'No Telepon Penerima',
-      'Tanggal Diambil'
+      'Tanggal Diambil',
+      'Petugas Penyerah'
     ];
 
     const rows = filteredItems.map((item, index) => [
@@ -520,9 +524,11 @@ export default function LostFoundPage() {
       formatDateTime(item.tanggal_ditemukan),
       item.lokasi_ditemukan || '',
       item.status === 'Lost' ? 'Belum Diambil' : 'Sudah Diambil',
+      item.petugas_input || '',
       item.nama_pemilik || '',
       item.nomor_telepon_pemilik || '',
-      item.status === 'Claimed' ? formatDateTime(item.tanggal_diambil) : ''
+      item.status === 'Claimed' ? formatDateTime(item.tanggal_diambil) : '',
+      item.status === 'Claimed' ? (item.petugas_klaim || '') : ''
     ]);
 
     // Format CSV using semicolon separation
@@ -830,10 +836,17 @@ export default function LostFoundPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="flex items-center gap-1.5 text-sm">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {formatDateTime(item.tanggal_ditemukan)}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="flex items-center gap-1.5 text-sm">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                {formatDateTime(item.tanggal_ditemukan)}
+                              </span>
+                              {item.petugas_input && (
+                                <span className="text-[10px] text-muted-foreground italic pl-[22px]">
+                                  Oleh: {item.petugas_input}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="flex items-center gap-1.5 text-sm">
@@ -857,6 +870,11 @@ export default function LostFoundPage() {
                                   <Phone className="h-3 w-3 text-muted-foreground" />
                                   {item.nomor_telepon_pemilik}
                                 </p>
+                                {item.petugas_klaim && (
+                                  <p className="text-muted-foreground text-[10px] italic flex items-center gap-1">
+                                    Penyerah: {item.petugas_klaim}
+                                  </p>
+                                )}
                                 {item.foto_ktp ? (
                                   <div
                                     onClick={() => item.foto_ktp && openPhotoPreview(item.foto_ktp)}
@@ -960,6 +978,11 @@ export default function LostFoundPage() {
                           <MapPin className="h-3.5 w-3.5" />
                           <span>Lokasi: {item.lokasi_ditemukan || '-'}</span>
                         </div>
+                        {item.petugas_input && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] italic mt-0.5">
+                            <span>Dicatat oleh: {item.petugas_input}</span>
+                          </div>
+                        )}
 
                         {item.status === 'Claimed' && (
                           <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-md space-y-1 mt-2 border border-dashed">
@@ -978,6 +1001,12 @@ export default function LostFoundPage() {
                               <Calendar className="h-3 w-3 text-muted-foreground" />
                               Tgl Ambil: {formatDateTime(item.tanggal_diambil)}
                             </p>
+                            {item.petugas_klaim && (
+                              <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <UserIcon className="h-3 w-3 text-muted-foreground" />
+                                Penyerah: {item.petugas_klaim}
+                              </p>
+                            )}
                             {item.foto_ktp ? (
                               <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800">
                                 <span className="text-[10px] text-muted-foreground">Scan KTP:</span>

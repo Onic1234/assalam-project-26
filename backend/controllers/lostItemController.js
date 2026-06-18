@@ -121,6 +121,8 @@ const lostItemController = {
         code = code.trim();
       }
 
+      const petugas_input = request.auth && request.auth.credentials ? request.auth.credentials.username : null;
+
       const newItem = await LostItem.create({
         nama_barang: nama_barang ? nama_barang.trim() : "",
         deskripsi: deskripsi ? deskripsi.trim() : null,
@@ -130,6 +132,7 @@ const lostItemController = {
         foto_barang: base64Image,
         kode_barang: code,
         foto_ktp: base64Ktp,
+        petugas_input,
         nama_pemilik: nama_pemilik ? nama_pemilik.trim() : null,
         nomor_telepon_pemilik: nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null,
         tanggal_diambil: tanggal_diambil || null,
@@ -259,11 +262,14 @@ const lostItemController = {
       if (request.payload.foto_barang !== undefined) updates.foto_barang = base64Image;
       if (request.payload.foto_ktp !== undefined) updates.foto_ktp = base64Ktp;
 
+      const petugas_klaim = request.auth && request.auth.credentials ? request.auth.credentials.username : null;
+
       // Handle claim updates if status is changed to Claimed
       if (status === "Claimed") {
         updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;
         updates.tanggal_diambil = tanggal_diambil || new Date().toISOString(); // default to current time if not provided
+        updates.petugas_klaim = petugas_klaim;
         if (request.payload.foto_ktp !== undefined) {
           updates.foto_ktp = base64Ktp;
         }
@@ -273,6 +279,7 @@ const lostItemController = {
         updates.nomor_telepon_pemilik = null;
         updates.tanggal_diambil = null;
         updates.foto_ktp = null;
+        updates.petugas_klaim = null;
       } else {
         if (nama_pemilik !== undefined) updates.nama_pemilik = nama_pemilik ? nama_pemilik.trim() : null;
         if (nomor_telepon_pemilik !== undefined) updates.nomor_telepon_pemilik = nomor_telepon_pemilik ? nomor_telepon_pemilik.trim() : null;

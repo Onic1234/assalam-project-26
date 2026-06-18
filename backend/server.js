@@ -89,6 +89,22 @@ const init = async () => {
       });
       console.log('✅ Column "foto_ktp" successfully added to "lost_items" table.');
     }
+
+    if (!tableDefinition.petugas_input) {
+      await queryInterface.addColumn('lost_items', 'petugas_input', {
+        type: Sequelize.STRING,
+        allowNull: true,
+      });
+      console.log('✅ Column "petugas_input" successfully added to "lost_items" table.');
+    }
+
+    if (!tableDefinition.petugas_klaim) {
+      await queryInterface.addColumn('lost_items', 'petugas_klaim', {
+        type: Sequelize.STRING,
+        allowNull: true,
+      });
+      console.log('✅ Column "petugas_klaim" successfully added to "lost_items" table.');
+    }
   } catch (err) {
     console.warn('⚠️ Could not verify/create/patch "lost_items" table:', err.message);
   }
