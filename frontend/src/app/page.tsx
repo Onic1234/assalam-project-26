@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Ticket, Loader2 } from "lucide-react";
+import { Ticket, Loader2, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -177,42 +177,65 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Member Access Card */}
-        <Card
-          className="hover:shadow-lg transition-shadow cursor-pointer"
-          onClick={handleMemberAccess}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 flex items-center justify-center">
-                  <Image
-                    src="/icons/Member Umum.png"
-                    alt="Member"
-                    width={48}
-                    height={48}
-                    className="object-contain"
-                  />
-                </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Apakah Anda PPMI | SANTRI | MEMBER{" "}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Masuk dengan akun member Anda
-                  </p>
-                </div>
+        {/* Member Access Options Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {/* Card 1: Masuk Sebagai Member */}
+          <Card
+            className="hover:shadow-2xl hover:border-blue-300 border-2 border-transparent transition-all duration-300 cursor-pointer flex flex-col justify-between"
+            onClick={handleMemberAccess}
+          >
+            <CardContent className="p-6 flex flex-col h-full justify-between items-center text-center space-y-4">
+              <div className="w-16 h-16 flex items-center justify-center bg-blue-50 rounded-full p-3 mt-2">
+                <Image
+                  src="/icons/Member Umum.png"
+                  alt="Member Access"
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Masuk Member
+                </h3>
+                <p className="text-sm text-gray-500 px-2">
+                  Akses kolam renang khusus PPMI, Santri, dan Member.
+                </p>
               </div>
               <Button
-                onClick={handleMemberAccess}
                 variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50 bg-transparent"
+                className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 bg-transparent py-5 font-semibold"
               >
-                Masuk Sebagai Member
+                Masuk Sekarang
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Top Up Kartu Member */}
+          <Card
+            className="hover:shadow-2xl hover:border-indigo-300 border-2 border-transparent transition-all duration-300 cursor-pointer flex flex-col justify-between"
+            onClick={() => router.push("/Topup")}
+          >
+            <CardContent className="p-6 flex flex-col h-full justify-between items-center text-center space-y-4">
+              <div className="w-16 h-16 flex items-center justify-center bg-indigo-50 rounded-full p-4 mt-2">
+                <Wallet className="w-10 h-10 text-indigo-600" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Top Up Saldo
+                </h3>
+                <p className="text-sm text-gray-500 px-2">
+                  Isi ulang saldo kartu member Anda untuk kemudahan transaksi.
+                </p>
+              </div>
+              <Button
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-5 font-semibold"
+              >
+                Top Up Sekarang
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Additional Info */}
         <div className="mt-8 text-center">

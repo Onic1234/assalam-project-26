@@ -14,6 +14,10 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "ownerId",
         constraints: false,
       });
+      Balance.belongsTo(models.Member, {
+        foreignKey: "ownerId",
+        constraints: false,
+      });
     }
   }
   Balance.init(

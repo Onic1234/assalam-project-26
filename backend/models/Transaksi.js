@@ -8,6 +8,10 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "santriId",
         as: "santri",
       });
+      Transaksi.belongsTo(models.Member, {
+        foreignKey: "memberId",
+        as: "member",
+      });
       Transaksi.hasMany(models.Transaction_detail, {
         foreignKey: "transactionId",
         as: "details",
@@ -26,6 +30,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true, // Diubah menjadi true agar bisa null
         references: {
           model: "Santris",
+          key: "id",
+        },
+      },
+      memberId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "Members",
           key: "id",
         },
       },

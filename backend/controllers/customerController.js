@@ -1,6 +1,68 @@
 // controllers/customerController.js
 const { PPMI, Staff, Santri, Member, Reguler, Balance } = require("../models"); // Menambahkan Balance
+const { Op } = require("sequelize");
 const Boom = require("@hapi/boom");
+
+exports.searchMember = async (request, h) => {
+  try {
+    const { q: query, limit = 10 } = request.query;
+
+    if (!query || query.trim().length < 1) {
+      return Boom.badRequest("Query pencarian minimal 1 karakter");
+    }
+
+    const members = await Member.findAll({
+      where: {
+        [Op.or]: [
+          {
+            Nama: {
+              [Op.like]: `%${query.trim()}%`,
+            },
+          },
+          {
+            id_member: {
+              [Op.like]: `%${query.trim()}%`,
+            },
+          },
+        ],
+      },
+      include: {
+        model: Balance,
+        as: "balance",
+        attributes: ["amount"],
+        required: false,
+      },
+      limit: parseInt(limit),
+      order: [["Nama", "ASC"]],
+    });
+
+    const results = members.map((member) => {
+      const memberData = member.toJSON();
+      return {
+        id: memberData.id,
+        id_member: memberData.id_member,
+        Nama: memberData.Nama,
+        Jenis_Kelamin: memberData.Jenis_Kelamin,
+        Jenis_Member: memberData.Jenis_Member,
+        Tanggal_Kadaluarsa: memberData.Tanggal_Kadaluarsa,
+        balance: {
+          amount: memberData.balance ? memberData.balance.amount : 0,
+        },
+      };
+    });
+
+    return h.response({
+      success: true,
+      message: `Ditemukan ${results.length} member`,
+      data: results,
+      total: results.length,
+    });
+  } catch (error) {
+    console.error("[ERROR] Error in searchMember:", error);
+    return Boom.internal(`Gagal mencari member: ${error.message}`);
+  }
+};
+
 
 // ... (fungsi CRUD lainnya tetap sama)
 exports.createCustomer = async (request, h) => {
@@ -29,8 +91,8 @@ exports.getAllCustomers = async (request, h) => {
 
   try {
     const queryOptions = {};
-    // Jika kategori adalah santri, sertakan data saldo
-    if (kategori.toLowerCase() === "santri") {
+    // Jika kategori adalah santri atau member, sertakan data saldo
+    if (kategori.toLowerCase() === "santri" || kategori.toLowerCase() === "member") {
       queryOptions.include = [
         {
           model: Balance,
@@ -55,8 +117,8 @@ exports.getCustomerById = async (request, h) => {
 
   try {
     const queryOptions = {};
-    // Jika kategori adalah santri, sertakan data saldo
-    if (kategori.toLowerCase() === "santri") {
+    // Jika kategori adalah santri atau member, sertakan data saldo
+    if (kategori.toLowerCase() === "santri" || kategori.toLowerCase() === "member") {
       queryOptions.include = [
         {
           model: Balance,
@@ -159,6 +221,36 @@ exports.manageFaceId = async (request, h) => {
   } catch (error) {
     console.error("Error managing FaceID:", error);
     return Boom.internal("Gagal memperbarui FaceID.");
+  }
+};
+
+exports.bulkGenerateMembers = async (request, h) => {
+  const { count } = request.payload;
+  try {
+    const numCount = parseInt(count, 10) || 1;
+    const membersToCreate = [];
+    for (let i = 0; i < numCount; i++) {
+      membersToCreate.push({
+        Nama: "Kartu Kosong",
+        Jenis_Member: "MEMBER",
+        Tanggal_Kadaluarsa: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000), // 100 tahun ke depan agar aktif selamanya
+        Jenis_Kelamin: "L", // default
+      });
+    }
+
+    // Gunakan individualHooks: true agar id auto-increment terisi di Sequelize & balance dibuat dengan ownerId yang benar
+    const createdMembers = await Member.bulkCreate(membersToCreate, { 
+      individualHooks: true 
+    });
+
+    return h.response({
+      success: true,
+      message: `${createdMembers.length} kartu member kosong berhasil dibuat.`,
+      data: createdMembers,
+    }).code(201);
+  } catch (error) {
+    console.error("[ERROR] bulkGenerateMembers failed:", error);
+    return Boom.internal("Gagal men-generate kartu member massal: " + error.message);
   }
 };
 

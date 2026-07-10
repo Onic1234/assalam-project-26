@@ -65,6 +65,9 @@ const importConfig = {
     uniqueKey: "Nama",
     requiredFields: ["Nama", "Tanggal_Kadaluarsa"],
     fieldMapping: {
+      "ID Member": "id_member",
+      "ID_MEMBER": "id_member",
+      id_member: "id_member",
       "Nama Lengkap": "Nama",
       Nama: "Nama",
       "Jenis Kelamin": "Jenis_Kelamin",
@@ -75,6 +78,7 @@ const importConfig = {
       Tanggal_Kadaluarsa: "Tanggal_Kadaluarsa",
     },
     templateColumns: [
+      { header: "ID Member", key: "id_member", width: 15 },
       { header: "Nama Lengkap", key: "Nama", width: 30 },
       { header: "Jenis Kelamin", key: "Jenis_Kelamin", width: 15 },
       { header: "Jenis Member", key: "Jenis_Member", width: 20 },

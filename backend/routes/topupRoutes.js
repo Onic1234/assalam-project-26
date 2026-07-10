@@ -88,7 +88,37 @@ const topupRoutes = [
     },
   },
 
-  // RUTE LAMA (DIMODIFIKASI): Untuk melakukan top-up menggunakan ID unik
+  // RUTE BARU: Pencarian kartu member secara publik (tanpa token auth)
+  {
+    method: 'GET',
+    path: '/public/member/search/{id_member}',
+    handler: topupController.findMemberByIdMember,
+    options: {
+      auth: false, // Bebas akses untuk scanner self-service
+      validate: {
+        params: Joi.object({
+          id_member: Joi.string().required(),
+        }),
+      },
+    },
+  },
+  // RUTE BARU: Melakukan top-up kartu member secara publik (tanpa token auth)
+  {
+    method: 'POST',
+    path: '/public/topup',
+    handler: topupController.createPublicTopup,
+    options: {
+      auth: false, // Bebas akses untuk scanner self-service
+      validate: {
+        payload: Joi.object({
+          id_member: Joi.string().required(),
+          amount: Joi.number().positive().required(),
+          payment_method: Joi.string().valid('QRIS', 'Tunai').optional(),
+        }),
+      },
+    },
+  },
+  // RUTE LAMA: Untuk melakukan top-up oleh admin/kasir menggunakan ID database santri/member
   {
     method: 'POST',
     path: '/topup',
@@ -97,10 +127,10 @@ const topupRoutes = [
       auth: { scope: ['admin', 'kasir'] },
       validate: {
         payload: Joi.object({
-          // Payload diubah menjadi santriId (lebih aman)
-          santriId: Joi.number().integer().positive().required(),
+          santriId: Joi.number().integer().positive().optional(),
+          memberId: Joi.number().integer().positive().optional(),
           amount: Joi.number().positive().required(),
-        }),
+        }).xor('santriId', 'memberId'),
       },
     },
   },

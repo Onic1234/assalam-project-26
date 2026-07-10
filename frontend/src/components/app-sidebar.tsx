@@ -64,6 +64,11 @@ const attendanceMenuItems = [
     icon: User,
   },
   {
+    title: 'Generate Kartu',
+    url: '/Admin/generate-card',
+    icon: CreditCard,
+  },
+  {
     title: 'Kelola User',
     url: '/Admin/user',
     icon: User,

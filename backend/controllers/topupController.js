@@ -1,5 +1,5 @@
 // controllers/topupController.js
-const { Santri, Balance, Transaksi, sequelize } = require('../models');
+const { Santri, Member, Balance, Transaksi, sequelize } = require('../models');
 const { Op } = require('sequelize'); // Import Op untuk operasi query
 const Boom = require('@hapi/boom');
 
@@ -191,35 +191,58 @@ const topupController = {
   },
 
   /**
-   * FUNGSI LAMA (DIMODIFIKASI): Melakukan top-up berdasarkan ID unik santri.
+   * FUNGSI LAMA (DIMODIFIKASI): Melakukan top-up berdasarkan ID unik santri atau member.
    * Lebih cepat dan aman karena tidak perlu lagi mencari berdasarkan nama.
    */
   createTopup: async (request, h) => {
     const t = await sequelize.transaction();
     try {
       const kasirId = request.auth.credentials.id;
-      // Menerima santriId (bukan lagi nama_santri)
-      const { santriId, amount } = request.payload;
+      // Menerima santriId ATAU memberId
+      const { santriId, memberId, amount } = request.payload;
 
-      // Tidak perlu lagi mencari santri, karena ID sudah unik dan didapat dari frontend
-      const santri = await Santri.findByPk(santriId);
-      if (!santri) {
+      if (!santriId && !memberId) {
         await t.rollback();
-        return Boom.notFound('ID Santri tidak valid atau tidak ditemukan.');
+        return Boom.badRequest('ID Santri atau ID Member harus ditentukan.');
       }
 
-      const [santriBalance] = await Balance.findOrCreate({
-        where: { ownerId: santriId, ownerType: 'santri' },
+      let ownerId;
+      let ownerType;
+      let name;
+
+      if (santriId) {
+        const santri = await Santri.findByPk(santriId);
+        if (!santri) {
+          await t.rollback();
+          return Boom.notFound('ID Santri tidak valid atau tidak ditemukan.');
+        }
+        ownerId = santriId;
+        ownerType = 'santri';
+        name = santri.nama_santri;
+      } else {
+        const member = await Member.findByPk(memberId);
+        if (!member) {
+          await t.rollback();
+          return Boom.notFound('ID Member tidak valid atau tidak ditemukan.');
+        }
+        ownerId = memberId;
+        ownerType = 'member';
+        name = member.Nama;
+      }
+
+      const [ownerBalance] = await Balance.findOrCreate({
+        where: { ownerId, ownerType },
         defaults: { amount: 0 },
         transaction: t,
       });
 
-      const newBalance = santriBalance.amount + amount;
-      await santriBalance.increment('amount', { by: amount, transaction: t });
+      const newBalance = ownerBalance.amount + amount;
+      await ownerBalance.increment('amount', { by: amount, transaction: t });
 
       await Transaksi.create(
         {
-          santriId,
+          santriId: ownerType === 'santri' ? ownerId : null,
+          memberId: ownerType === 'member' ? ownerId : null,
           kasirId,
           total_amount: amount,
           payment_method: 'TopUp',
@@ -236,8 +259,9 @@ const topupController = {
           success: true,
           message: 'Top-up berhasil',
           data: {
-            santri_id: santriId,
-            nama_santri: santri.nama_santri,
+            owner_id: ownerId,
+            owner_type: ownerType,
+            name: name,
             amount_topped_up: amount,
             new_balance: newBalance,
           },
@@ -246,6 +270,103 @@ const topupController = {
     } catch (error) {
       await t.rollback();
       console.error('Error in createTopup:', error);
+      return Boom.internal('Gagal memproses top-up');
+    }
+  },
+
+  findMemberByIdMember: async (request, h) => {
+    try {
+      const { id_member } = request.params;
+      const member = await Member.findOne({
+        where: { id_member: id_member.trim() },
+        include: {
+          model: Balance,
+          as: 'balance',
+          attributes: ['amount'],
+        },
+      });
+
+      if (!member) {
+        return Boom.notFound('Kartu Member tidak ditemukan.');
+      }
+
+      // Ambil 5 riwayat transaksi terakhir untuk ditampilkan di dashboard mandiri
+      const transactions = await Transaksi.findAll({
+        where: { memberId: member.id },
+        order: [['createdAt', 'DESC']],
+        limit: 5,
+      });
+
+      return h.response({
+        success: true,
+        data: {
+          id: member.id,
+          id_member: member.id_member,
+          Nama: member.Nama,
+          balance: {
+            amount: member.balance ? member.balance.amount : 0,
+          },
+          transactions: transactions || [],
+        },
+      });
+    } catch (error) {
+      console.error('Error in findMemberByIdMember:', error);
+      return Boom.internal('Gagal memproses pencarian member');
+    }
+  },
+
+  createPublicTopup: async (request, h) => {
+    const t = await sequelize.transaction();
+    try {
+      const { id_member, amount, payment_method = 'QRIS' } = request.payload;
+
+      const member = await Member.findOne({
+        where: { id_member: id_member.trim() },
+        transaction: t,
+      });
+
+      if (!member) {
+        await t.rollback();
+        return Boom.notFound('Kartu Member tidak ditemukan.');
+      }
+
+      const [ownerBalance] = await Balance.findOrCreate({
+        where: { ownerId: member.id, ownerType: 'member' },
+        defaults: { amount: 0 },
+        transaction: t,
+      });
+
+      const newBalance = ownerBalance.amount + amount;
+      await ownerBalance.increment('amount', { by: amount, transaction: t });
+
+      await Transaksi.create(
+        {
+          memberId: member.id,
+          kasirId: null,
+          total_amount: amount,
+          payment_method: payment_method || 'QRIS',
+          status: 'completed',
+          Transaction_type: 'topup',
+        },
+        { transaction: t }
+      );
+
+      await t.commit();
+
+      return h.response({
+        success: true,
+        message: 'Top-up saldo berhasil diproses',
+        data: {
+          owner_id: member.id,
+          id_member: member.id_member,
+          name: member.Nama,
+          amount_topped_up: amount,
+          new_balance: newBalance,
+        },
+      }).code(201);
+    } catch (error) {
+      await t.rollback();
+      console.error('Error in createPublicTopup:', error);
       return Boom.internal('Gagal memproses top-up');
     }
   },

@@ -50,18 +50,20 @@ interface Visitor {
   id: string;
   name: string;
   date: string;
-  category: "reguler" | "santri" | "member" | "staff" | "ppmi";
+  category: "reguler" | "santri" | "member" | "staff" | "ppmi" | "card special";
   quantity: number;
-  paymentMethod: "cash" | "qris";
+  paymentMethod: "cash" | "qris" | "card_member";
+  idMember?: string;
 }
 
 interface ApiSaleData {
   id: number;
   customerName: string;
   Tanggal_Kunjungan: string;
-  Kategori: "Reguler" | "PPMI" | "Santri" | "Member" | "Staff";
+  Kategori: string;
   Kuantitas: number;
-  Metode_Pembayaran: "Cash" | "QRIS";
+  Metode_Pembayaran: string;
+  id_member?: string;
 }
 
 export default function PenjualanPage() {
@@ -87,7 +89,7 @@ export default function PenjualanPage() {
 
   // --- FUNGSI HELPER TAMPILAN ---
   const getPaymentMethodLabel = (method: Visitor["paymentMethod"]) =>
-    ({ cash: "Tunai", qris: "QRIS" }[method] || method);
+    ({ cash: "Tunai", qris: "QRIS", card_member: "Saldo Kartu" }[method] || method);
   const getCategoryLabel = (category: Visitor["category"]) =>
     ({
       reguler: "Reguler",
@@ -95,6 +97,7 @@ export default function PenjualanPage() {
       member: "Member",
       staff: "Staff",
       ppmi: "PPMI",
+      "card special": "Card Special",
     }[category] || category);
   const getCategoryIcon = (category: Visitor["category"]) => {
     switch (category) {
@@ -108,6 +111,8 @@ export default function PenjualanPage() {
         return <User className="h-4 w-4 text-muted-foreground" />;
       case "ppmi":
         return <Users className="h-4 w-4 text-muted-foreground" />;
+      case "card special":
+        return <CreditCard className="h-4 w-4 text-muted-foreground" />;
       default:
         return <Users className="h-4 w-4 text-muted-foreground" />;
     }
@@ -118,6 +123,8 @@ export default function PenjualanPage() {
         return <Wallet className="h-4 w-4 text-muted-foreground" />;
       case "qris":
         return <QrCode className="h-4 w-4 text-muted-foreground" />;
+      case "card_member":
+        return <CreditCard className="h-4 w-4 text-muted-foreground" />;
       default:
         return <Wallet className="h-4 w-4 text-muted-foreground" />;
     }
@@ -177,7 +184,12 @@ export default function PenjualanPage() {
               quantity: sale.Kuantitas,
               paymentMethod: (
                 sale.Metode_Pembayaran || "cash"
-              ).toLowerCase() === "qris" ? "qris" : "cash",
+              ).toLowerCase() === "qris"
+                ? "qris"
+                : (sale.Metode_Pembayaran || "cash").toLowerCase() === "card_member"
+                ? "card_member"
+                : "cash",
+              idMember: sale.id_member,
             })
           );
           setVisitors(formattedVisitors);
@@ -463,7 +475,7 @@ export default function PenjualanPage() {
 
     categoryAndSearchFiltered.forEach((visitor) => {
       let price = 0;
-      if (visitor.category === "reguler") {
+      if (visitor.category === "reguler" || visitor.category === "card special") {
         price = ticketPrices.reguler;
       } else if (visitor.category === "staff") {
         price = ticketPrices.staff;
@@ -509,7 +521,7 @@ export default function PenjualanPage() {
 
     finalFilteredVisitors.forEach((visitor) => {
       let price = 0;
-      if (visitor.category === "reguler") {
+      if (visitor.category === "reguler" || visitor.category === "card special") {
         price = ticketPrices.reguler;
       } else if (visitor.category === "staff") {
         price = ticketPrices.staff;
@@ -878,7 +890,14 @@ export default function PenjualanPage() {
                       finalFilteredVisitors.map((visitor) => (
                         <TableRow key={visitor.id}>
                           <TableCell className="font-medium">
-                            {visitor.name}
+                            <div className="flex flex-col">
+                              <span className="text-slate-900 font-semibold">{visitor.name}</span>
+                              {visitor.idMember && (
+                                <span className="text-[10px] text-indigo-600 font-mono mt-0.5 font-bold" title="UID Kartu Member">
+                                  Card: {visitor.idMember}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -911,7 +930,7 @@ export default function PenjualanPage() {
                           <TableCell className="text-right font-medium">
                             Rp {(() => {
                               let price = 0;
-                              if (visitor.category === "reguler") {
+                              if (visitor.category === "reguler" || visitor.category === "card special") {
                                 price = ticketPrices.reguler;
                               } else if (visitor.category === "staff") {
                                 price = ticketPrices.staff;

@@ -89,6 +89,7 @@ const getAuthHeaders = (includeContentType = true) => {
 // Interface untuk data mentah dari API (sesuai model Sequelize)
 interface ApiMember {
   id: number;
+  id_member: string | null;
   Nama: string;
   Jenis_Kelamin: string | null;
   Jenis_Member: string | null;
@@ -100,6 +101,7 @@ interface ApiMember {
 // Interface untuk data yang digunakan di frontend (camelCase)
 interface Member {
   id: number;
+  idMember: string | null;
   nama: string;
   jenisKelamin: string | null;
   jenisMember: string | null;
@@ -110,6 +112,7 @@ interface Member {
 
 // Interface untuk payload saat membuat atau update member
 interface MemberInput {
+  id_member: string | null;
   Nama: string;
   Jenis_Kelamin: string | null;
   Jenis_Member: string | null;
@@ -228,6 +231,7 @@ export default function MemberManagementPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [formData, setFormData] = useState({
+    idMember: '',
     nama: '',
     jenisKelamin: '',
     jenisMember: '',
@@ -241,6 +245,8 @@ export default function MemberManagementPage() {
     isUpdate: boolean;
   } | null>(null);
 
+
+
   // --- PERUBAHAN --- State untuk fungsionalitas Impor
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -251,9 +257,13 @@ export default function MemberManagementPage() {
     setLoading(true);
     try {
       const apiData = await api.getAllMembers();
+      // Filter out Blank/Prepaid cards ("Kartu Kosong") from the personal Member list
+      const registeredMembers = apiData.filter((member) => member.Nama !== 'Kartu Kosong');
+      
       // Transformasi data dari format backend ke format frontend
-      const transformedMembers = apiData.map((member) => ({
+      const transformedMembers = registeredMembers.map((member) => ({
         id: member.id,
+        idMember: member.id_member,
         nama: member.Nama,
         jenisKelamin: member.Jenis_Kelamin,
         jenisMember: member.Jenis_Member,
@@ -294,6 +304,7 @@ export default function MemberManagementPage() {
 
     try {
       const payload: MemberInput = {
+        id_member: formData.idMember || null,
         Nama: formData.nama,
         Jenis_Kelamin: formData.jenisKelamin || null,
         Jenis_Member: formData.jenisMember || null,
@@ -305,7 +316,7 @@ export default function MemberManagementPage() {
         description: 'Member baru berhasil ditambahkan.',
       });
       setIsAddDialogOpen(false);
-      setFormData({ nama: '', jenisKelamin: '', jenisMember: '', expirationDate: '' });
+      setFormData({ idMember: '', nama: '', jenisKelamin: '', jenisMember: '', expirationDate: '' });
       await fetchMembers();
     } catch (error) {
       toast({
@@ -326,6 +337,7 @@ export default function MemberManagementPage() {
     }
     try {
       const payload: MemberInput = {
+        id_member: formData.idMember || null,
         Nama: formData.nama,
         Jenis_Kelamin: formData.jenisKelamin || null,
         Jenis_Member: formData.jenisMember || null,
@@ -412,6 +424,7 @@ export default function MemberManagementPage() {
   const filteredMembers = memberList.filter(
     (member) =>
       member.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (member.idMember || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (member.jenisMember || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -422,6 +435,7 @@ export default function MemberManagementPage() {
   const openEditDialog = (member: Member) => {
     setSelectedMember(member);
     setFormData({
+      idMember: member.idMember || '',
       nama: member.nama,
       jenisKelamin: member.jenisKelamin || '',
       jenisMember: member.jenisMember || '',
@@ -455,6 +469,8 @@ export default function MemberManagementPage() {
       });
     }
   };
+
+
 
   const getStatistics = () => {
     const totalMembers = memberList.length;
@@ -753,13 +769,16 @@ export default function MemberManagementPage() {
                                 onClick={() =>
                                   handleOpenFaceRegistrationDialog(member)
                                 }
+                                title="Registrasi Face ID"
                               >
                                 <UserPlus className="h-4 w-4" />
                               </Button>
+
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => openEditDialog(member)}
+                                title="Edit Member"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -883,6 +902,8 @@ export default function MemberManagementPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+
 
           {faceRegistrationTarget && (
             <FaceRegistrationDialog

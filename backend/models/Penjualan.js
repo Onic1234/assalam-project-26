@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: DataTypes.NOW,
       },
       Kategori: {
-        type: DataTypes.ENUM("Reguler", "PPMI", "Santri", "Member", "Staff"),
+        type: DataTypes.STRING,
         allowNull: false,
       },
       Kuantitas: {
@@ -27,7 +27,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       Metode_Pembayaran: {
-        type: DataTypes.ENUM("Tunai", "QRIS"),
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      id_member: {
+        type: DataTypes.STRING,
         allowNull: true,
       },
     },

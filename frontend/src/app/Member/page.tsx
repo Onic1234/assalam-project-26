@@ -96,8 +96,7 @@ export default function MemberPage() {
 
           {/* MEMBERSHIP Card - Right */}
           <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-2 hover:border-blue-300"
-            onClick={handleNonSantriAccess}
+            className="hover:shadow-lg transition-all duration-300 border-2 hover:border-blue-300"
           >
             <CardHeader className="text-center pb-4">
               <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4">
@@ -114,8 +113,13 @@ export default function MemberPage() {
                 Akses khusus Membership Assalaam Olympic Pool Stadium
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-center pt-0">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg">Scan Face ID</Button>
+            <CardContent className="text-center pt-0 flex flex-col gap-2">
+              <Button onClick={handleNonSantriAccess} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-base">
+                Scan Face ID
+              </Button>
+              <Button onClick={() => router.push("/Member/ScanCard")} className="w-full bg-indigo-600 hover:bg-indigo-755 text-white py-3 text-base">
+                Scan Kartu Member
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -42,21 +42,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// Interface untuk data santri dan transaksi
-interface Student {
-  id: number; // ID Primary Key, digunakan untuk top-up
-  nama_santri: string; //
-  id_santri: string; //
-  balance: { amount: number }; //
-}
-
-interface Transaction {
-  id: number;
-  Transaction_type: 'topup' | 'purchase' | 'penalty';
-  total_amount: number;
-  Note: string;
-  status: string;
-  createdAt: string;
+// Interface terpadu untuk data santri atau member
+interface Account {
+  id: number; // ID Primary Key
+  name: string; // Nama Lengkap
+  uniqueId: string; // ID Santri atau ID Member
+  balance: { amount: number }; // Saldo saat ini
 }
 
 interface ApiResponse<T> {
@@ -66,25 +57,25 @@ interface ApiResponse<T> {
 }
 
 interface TopupResponseData {
-  santri_id: number;
-  nama_santri: string;
+  owner_id: number;
+  owner_type: 'santri' | 'member';
+  name: string;
   amount_topped_up: number;
   new_balance: number;
 }
 
 export default function TopUpPage() {
+  const [topupType, setTopupType] = useState<'santri' | 'member'>('santri');
   const [nameInput, setNameInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
-  // State baru untuk menampung hasil pencarian dan santri yang dipilih
-  const [searchResults, setSearchResults] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  // Hasil pencarian dan akun yang dipilih
+  const [searchResults, setSearchResults] = useState<Account[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
   const [selectedAmount, setSelectedAmount] = useState<string>('');
   const [customAmount, setCustomAmount] = useState('');
-
-  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showFailureAlert, setShowFailureAlert] = useState(false);
@@ -110,35 +101,44 @@ export default function TopUpPage() {
 
   const handleSearchByName = async () => {
     if (!nameInput.trim() || nameInput.trim().length < 2) {
-      setSearchError('Masukkan nama atau ID santri (minimal 2 karakter).');
+      setSearchError(`Masukkan nama atau ID ${topupType === 'santri' ? 'santri' : 'member'} (minimal 2 karakter).`);
       return;
     }
     setIsSearching(true);
     setSearchError('');
-    setSelectedStudent(null);
+    setSelectedAccount(null);
     setSearchResults([]);
 
     try {
-      // Menggunakan endpoint searchSantri yang lebih fleksibel
+      const endpoint = topupType === 'santri'
+        ? `/santri/search?q=${encodeURIComponent(nameInput)}`
+        : `/customers/member/search?q=${encodeURIComponent(nameInput)}`;
+
       const response = await fetch(
-        `${API_BASE_URL}/santri/search?q=${encodeURIComponent(nameInput)}`,
+        `${API_BASE_URL}${endpoint}`,
         {
           headers: getAuthHeaders(),
         }
       );
 
-      const result: ApiResponse<Student[]> = await response.json();
+      const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Gagal mencari data santri.');
+        throw new Error(result.message || `Gagal mencari data ${topupType}.`);
       }
 
       if (result.data.length === 0) {
         setSearchError(
-          `Santri dengan nama atau ID "${nameInput}" tidak ditemukan.`
+          `Akun dengan nama atau ID "${nameInput}" tidak ditemukan.`
         );
       } else {
-        setSearchResults(result.data);
+        const mappedResults: Account[] = result.data.map((item: any) => ({
+          id: item.id,
+          name: topupType === 'santri' ? item.nama_santri : item.Nama,
+          uniqueId: topupType === 'santri' ? item.id_santri : (item.id_member || '-'),
+          balance: item.balance || { amount: 0 },
+        }));
+        setSearchResults(mappedResults);
       }
     } catch (error) {
       const errorMessage =
@@ -149,25 +149,25 @@ export default function TopUpPage() {
     }
   };
 
-  const handleSelectStudent = (student: Student) => {
-    setSelectedStudent(student);
-    setSearchResults([]); // Sembunyikan daftar hasil setelah memilih
-    setNameInput(student.nama_santri); // Opsional: isi input dengan nama terpilih
+  const handleSelectAccount = (account: Account) => {
+    setSelectedAccount(account);
+    setSearchResults([]);
+    setNameInput(account.name);
     setSearchError('');
   };
 
   const processTopUp = async (
-    santriId: number,
+    id: number,
     amount: number
   ): Promise<ApiResponse<TopupResponseData>> => {
-    // Fungsi ini sudah benar, menggunakan santriId
+    const payload = topupType === 'santri'
+      ? { santriId: id, amount }
+      : { memberId: id, amount };
+
     const response = await fetch(`${API_BASE_URL}/topup`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        santriId: santriId,
-        amount: amount,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
@@ -179,7 +179,7 @@ export default function TopUpPage() {
 
   const handleTopUp = async () => {
     const amount = selectedAmount || customAmount;
-    if (!selectedStudent || !amount) return;
+    if (!selectedAccount || !amount) return;
 
     const numericAmount = Number.parseInt(amount);
     if (numericAmount <= 0) {
@@ -190,16 +190,16 @@ export default function TopUpPage() {
 
     setIsProcessing(true);
     try {
-      const result = await processTopUp(selectedStudent.id, numericAmount);
+      const result = await processTopUp(selectedAccount.id, numericAmount);
 
-      const updatedStudent = {
-        ...selectedStudent,
+      const updatedAccount = {
+        ...selectedAccount,
         balance: { amount: result.data.new_balance },
       };
-      setSelectedStudent(updatedStudent);
+      setSelectedAccount(updatedAccount);
       setAlertMessage(
         `Top-up untuk ${
-          result.data.nama_santri
+          result.data.name
         } berhasil! Saldo baru: Rp ${result.data.new_balance.toLocaleString()}`
       );
       setShowSuccessAlert(true);
@@ -216,7 +216,7 @@ export default function TopUpPage() {
   };
 
   const handleReset = () => {
-    setSelectedStudent(null);
+    setSelectedAccount(null);
     setSearchResults([]);
     setNameInput('');
     setSelectedAmount('');
@@ -237,38 +237,62 @@ export default function TopUpPage() {
             />
             <h1 className="text-lg font-semibold">Top Up Saldo</h1>
           </div>
-          {selectedStudent && (
+          {selectedAccount && (
             <div className="ml-auto flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1">
                 <UserCircle className="h-6 w-6" />
                 <span className="text-sm font-medium">
-                  {selectedStudent.nama_santri}
+                  {selectedAccount.name}
                 </span>
               </div>
               <Button variant="ghost" size="sm" onClick={handleReset}>
-                Cari Santri Lain
+                Cari {topupType === 'santri' ? 'Santri' : 'Member'} Lain
               </Button>
             </div>
           )}
         </header>
 
         <main className="flex-1 p-4 md:p-6">
-          {!selectedStudent ? (
-            <div className="flex flex-col items-center justify-start pt-16">
+          {!selectedAccount ? (
+            <div className="flex flex-col items-center justify-start pt-16 gap-6">
+              {/* Toggle switch antara Santri dan Member */}
+              <div className="flex bg-muted p-1 rounded-lg w-full max-w-lg">
+                <button
+                  onClick={() => { setTopupType('santri'); handleReset(); }}
+                  className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-all ${
+                    topupType === 'santri'
+                      ? 'bg-white shadow text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Top-Up Santri
+                </button>
+                <button
+                  onClick={() => { setTopupType('member'); handleReset(); }}
+                  className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-all ${
+                    topupType === 'member'
+                      ? 'bg-white shadow text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Top-Up Member
+                </button>
+              </div>
+
               <Card className="w-full max-w-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
-                    <UserSearch /> Cari Akun Santri
+                    <UserSearch /> Cari Akun {topupType === 'santri' ? 'Santri' : 'Member'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Masukkan nama atau ID santri untuk menemukan akun.
+                    Masukkan nama atau ID {topupType === 'santri' ? 'santri' : 'member'} untuk menemukan akun.
                   </p>
                   <div className="flex gap-2">
                     <Input
                       type="text"
-                      placeholder="Masukkan Nama atau ID Santri"
+                      placeholder={`Masukkan Nama atau ID ${topupType === 'santri' ? 'Santri' : 'Member'}`}
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
                       onKeyDown={(e) =>
@@ -294,7 +318,7 @@ export default function TopUpPage() {
               </Card>
 
               {searchResults.length > 0 && (
-                <Card className="w-full max-w-lg mt-4">
+                <Card className="w-full max-w-lg">
                   <CardHeader>
                     <CardTitle>Hasil Pencarian</CardTitle>
                   </CardHeader>
@@ -309,22 +333,22 @@ export default function TopUpPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {searchResults.map((santri) => (
-                          <TableRow key={santri.id}>
+                        {searchResults.map((account) => (
+                          <TableRow key={account.id}>
                             <TableCell className="font-medium">
-                              {santri.nama_santri}
+                              {account.name}
                             </TableCell>
-                            <TableCell>{santri.id_santri}</TableCell>
+                            <TableCell>{account.uniqueId}</TableCell>
                             <TableCell>
                               {`Rp ${
-                                santri.balance?.amount.toLocaleString() ?? '0'
+                                account.balance?.amount.toLocaleString() ?? '0'
                               }`}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleSelectStudent(santri)}
+                                onClick={() => handleSelectAccount(account)}
                               >
                                 Pilih
                               </Button>
@@ -342,24 +366,24 @@ export default function TopUpPage() {
               <div className="grid gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-1">
                   <CardHeader>
-                    <CardTitle>Profil Santri</CardTitle>
+                    <CardTitle>Profil {topupType === 'santri' ? 'Santri' : 'Member'}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col items-center text-center mb-6">
                       <Avatar className="h-24 w-24 mb-4">
                         <AvatarImage
                           src="/placeholder.svg"
-                          alt={selectedStudent.nama_santri}
+                          alt={selectedAccount.name}
                         />
                         <AvatarFallback className="text-2xl">
-                          {selectedStudent.nama_santri.charAt(0)}
+                          {selectedAccount.name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       <h3 className="text-xl font-medium">
-                        {selectedStudent.nama_santri}
+                        {selectedAccount.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        ID: {selectedStudent.id_santri}
+                        ID: {selectedAccount.uniqueId}
                       </p>
                     </div>
                     <div className="flex flex-col items-center">
@@ -369,7 +393,7 @@ export default function TopUpPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <Wallet className="h-6 w-6" />
                         <span className="text-3xl font-bold">
-                          Rp {selectedStudent.balance.amount.toLocaleString()}
+                          Rp {selectedAccount.balance.amount.toLocaleString()}
                         </span>
                       </div>
                     </div>

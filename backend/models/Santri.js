@@ -70,6 +70,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         // Hook ini juga akan berjalan untuk setiap record saat menggunakan bulkCreate
         afterBulkCreate: async (santris, options) => {
+          if (options.individualHooks) return;
           const { Balance } = sequelize.models;
           const balancesToCreate = santris.map((santri) => ({
             ownerId: santri.id,

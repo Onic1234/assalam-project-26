@@ -7,6 +7,9 @@ const {
   Santri,
   Member,
   TicketPrice,
+  Balance,
+  Transaksi,
+  sequelize,
 } = require("../models");
 const { Op } = require("sequelize"); // <-- BARIS INI DITAMBAHKAN
 const Boom = require("@hapi/boom");
@@ -36,30 +39,81 @@ const createSale = async (
   customer,
   kategori,
   kuantitas,
-  metodePembayaran = null
+  metodePembayaran = null,
+  idMember = null
 ) => {
   return await Penjualan.create({
     CustomerId: customer.id,
     Kategori: kategori,
     Kuantitas: kuantitas,
     Metode_Pembayaran: metodePembayaran,
+    id_member: idMember,
     Tanggal_Kunjungan: new Date(),
   });
 };
 
 // Ticketing untuk Umum/Reguler
 exports.ticketForReguler = async (request, h) => {
-  const { Nama, No_Telepon, Kuantitas, Metode_Pembayaran } = request.payload;
+  const { Nama, No_Telepon, Kuantitas, Metode_Pembayaran, id_member } = request.payload;
   try {
+    let member = null;
+    if (id_member && id_member.trim() !== "") {
+      member = await Member.findOne({ where: { id_member: id_member.trim() } });
+      if (!member) {
+        return h.response({ message: "ID Member tidak ditemukan." }).code(404);
+      }
+
+      // Selalu update nama di kartu member dengan nama pengunjung saat ini (diperbolehkan ganti-ganti nama)
+      if (Nama && Nama.trim() !== "") {
+        member.Nama = Nama;
+        await member.save();
+      }
+    }
+
+    if (Metode_Pembayaran === "card_member") {
+      if (!member) {
+        return h.response({ message: "ID Member harus diisi untuk pembayaran menggunakan Saldo Kartu." }).code(400);
+      }
+
+      // Cari harga tiket reguler
+      const ticketPrice = await TicketPrice.findOne({ where: { kategori: 'Reguler' } });
+      let price = 25000;
+      let discount = 0;
+      if (ticketPrice) {
+        price = ticketPrice.harga;
+        discount = ticketPrice.discountPercentage || 0;
+      }
+      const finalPrice = price * (1 - discount / 100);
+      const totalCost = finalPrice * Kuantitas;
+
+      // Cek saldo balance member
+      const balanceRecord = await Balance.findOne({ where: { ownerId: member.id, ownerType: 'member' } });
+      if (!balanceRecord || balanceRecord.amount < totalCost) {
+        return h.response({ message: "Saldo kartu member tidak mencukupi untuk pembayaran tiket." }).code(400);
+      }
+
+      // Potong saldo
+      balanceRecord.amount -= totalCost;
+      await balanceRecord.save();
+
+      // Catat transaksi
+      await Transaksi.create({
+        memberId: member.id,
+        total_amount: totalCost,
+        payment_method: 'card_member',
+      });
+    }
+
     const [customer] = await Reguler.findOrCreate({
       where: { No_Telepon, Nama },
       defaults: { Nama, No_Telepon },
     });
     const sale = await createSale(
       customer,
-      "Reguler",
+      Metode_Pembayaran === "card_member" ? "Card Special" : "Reguler",
       Kuantitas,
-      Metode_Pembayaran
+      Metode_Pembayaran,
+      Metode_Pembayaran === "card_member" ? id_member : null
     );
     return h
       .response({ message: "Tiket berhasil dibuat.", data: sale })
@@ -196,6 +250,7 @@ exports.getAllTicketSales = async (request, h) => {
           PPMI: { model: PPMI, nameField: "Username" },
           Santri: { model: Santri, nameField: "nama_santri" },
           Member: { model: Member, nameField: "Nama" },
+          "Card Special": { model: Reguler, nameField: "Nama" },
         };
 
         const customerInfo = models[sale.Kategori];
@@ -409,3 +464,38 @@ exports.ticketForSantri = (request, h) =>
   ticketByFaceId(request, h, Santri, "Santri", "nama_santri");
 exports.ticketForMember = (request, h) =>
   ticketByFaceId(request, h, Member, "Member", "Nama");
+
+exports.ticketForMemberById = async (request, h) => {
+  const { id_member } = request.payload;
+  try {
+    const member = await Member.findOne({
+      where: { id_member },
+    });
+
+    if (!member) {
+      return Boom.notFound("Kartu/ID Member tidak ditemukan.");
+    }
+
+    // Periksa apakah sudah kedaluwarsa
+    const today = new Date();
+    const expiry = new Date(member.Tanggal_Kadaluarsa);
+    if (expiry < today) {
+      return Boom.badRequest("Masa berlaku member Anda telah kedaluwarsa.");
+    }
+
+    const sale = await createSale(member, "Member", 1);
+
+    return h
+      .response({
+        message: "Akses member terverifikasi. Tiket berhasil dibuat.",
+        data: {
+          ...sale.toJSON(),
+          customerName: member.Nama,
+        },
+      })
+      .code(201);
+  } catch (error) {
+    console.error("Error creating ticket by member ID:", error);
+    return Boom.internal("Gagal memproses check-in member.");
+  }
+};

@@ -55,6 +55,20 @@ const routes = [
     handler: ticketingController.ticketForMember,
     options: faceDescriptorValidation,
   },
+  {
+    method: "POST",
+    path: "/ticketing/member/scan",
+    handler: ticketingController.ticketForMemberById,
+    options: {
+      auth: false,
+      description: "Ticketing endpoint for member scan check-in by custom ID",
+      validate: {
+        payload: Joi.object({
+          id_member: Joi.string().required(),
+        }),
+      },
+    },
+  },
 
   // Endpoint Manajemen Harga Tiket
   {

@@ -3,6 +3,18 @@ const customerController = require("../controllers/customerController");
 const Joi = require("joi");
 
 const routes = [
+  // Member Search
+  {
+    method: "GET",
+    path: "/customers/member/search",
+    handler: customerController.searchMember,
+    options: {
+      auth: {
+        scope: ["admin"],
+      },
+    },
+  },
+
   // CRUD untuk semua jenis customer
   {
     method: ["POST", "GET", "PUT", "DELETE"],
@@ -23,6 +35,18 @@ const routes = [
     options: {
       auth: {
         scope: ["admin"], // Hanya admin yang bisa mengelola semua data customer
+      },
+    },
+  },
+
+  // Bulk Generate Member Cards
+  {
+    method: "POST",
+    path: "/customers/member/bulk-generate",
+    handler: customerController.bulkGenerateMembers,
+    options: {
+      auth: {
+        scope: ["admin"],
       },
     },
   },
