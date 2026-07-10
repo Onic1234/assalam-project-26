@@ -63,13 +63,17 @@ export default function GenerateCardPage() {
       return;
     }
 
-    const headers = ['No', 'ID Member', 'Nama', 'Jenis Member'];
-    const rows = cards.map((card, index) => [
-      index + 1,
-      card.id_member,
-      card.Nama,
-      card.Jenis_Member
-    ]);
+    const headers = ['No', 'ID Member', 'Nama', 'Jenis Member', 'Link QR Code'];
+    const rows = cards.map((card, index) => {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(card.id_member)}`;
+      return [
+        index + 1,
+        card.id_member,
+        card.Nama,
+        card.Jenis_Member,
+        qrUrl
+      ];
+    });
 
     // Format CSV dengan pemisah koma dan kutip ganda
     const csvContent = [
