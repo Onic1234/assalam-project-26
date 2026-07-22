@@ -64,22 +64,23 @@ export default function GenerateCardPage() {
       return;
     }
 
-    const headers = ['No', 'ID Member', 'Nama', 'Jenis Member', 'Link Barcode'];
+    const headers = ['No', 'ID Member', 'Nama', 'Jenis Member', 'Barcode'];
     const rows = cards.map((card, index) => {
       const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(card.id_member)}&scale=2&includetext`;
+      const imageFormula = `=IMAGE("${barcodeUrl}")`;
       return [
         index + 1,
-        card.id_member,
-        card.Nama,
-        card.Jenis_Member,
-        barcodeUrl
-      ];
+        `"${card.id_member}"`,
+        `"${card.Nama}"`,
+        `"${card.Jenis_Member}"`,
+        imageFormula
+      ].join(',');
     });
 
-    // Format CSV dengan pemisah koma dan kutip ganda
+    // Format CSV dengan pemisah koma
     const csvContent = [
       headers.join(','),
-      ...rows.map((row) => row.map((val) => `"${val}"`).join(','))
+      ...rows
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
