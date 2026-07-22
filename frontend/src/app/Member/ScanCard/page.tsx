@@ -306,7 +306,7 @@ export default function MemberScanCardPage() {
             </div>
             <CardTitle className="text-2xl font-bold tracking-tight text-slate-100">Tempel / Scan Kartu Member</CardTitle>
             <CardDescription className="text-slate-400">
-              {useCamera ? 'Arahkan QR Code kartu member Anda ke kamera' : 'Dekatkan kartu ke reader atau masukkan ID di bawah ini'}
+              {useCamera ? 'Arahkan Barcode / QR Code kartu member Anda ke kamera' : 'Dekatkan kartu ke reader atau masukkan ID di bawah ini'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-4">
@@ -323,7 +323,7 @@ export default function MemberScanCardPage() {
                 {/* Overlay Scanning Laser */}
                 <div className="absolute inset-0 border-2 border-dashed border-indigo-400/30 m-6 rounded flex items-center justify-center pointer-events-none">
                   <div className="w-full h-[2px] bg-red-500 shadow-md shadow-red-500 absolute animate-[scanLaser_2.5s_ease-in-out_infinite]" />
-                  <span className="text-xs text-indigo-300 bg-slate-900/80 px-2 py-1 rounded">Memindai QR...</span>
+                  <span className="text-xs text-indigo-300 bg-slate-900/80 px-2 py-1 rounded">Memindai Barcode / QR...</span>
                 </div>
                 {/* Tombol Switch Kamera */}
                 <Button
@@ -391,7 +391,7 @@ export default function MemberScanCardPage() {
               ) : (
                 <>
                   <Camera className="mr-2 h-4 w-4" />
-                  Gunakan Scanner Kamera (Scan QR)
+                  Gunakan Scanner Kamera (Scan Barcode / QR)
                 </>
               )}
             </Button>

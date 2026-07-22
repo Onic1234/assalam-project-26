@@ -10,7 +10,8 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { AppSidebar } from '@/components/app-sidebar';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Printer, Loader2, Sparkles, CheckCircle2, Download } from 'lucide-react';
+import { CreditCard, Printer, Loader2, Sparkles, CheckCircle2, Download, Barcode } from 'lucide-react';
+import { BarcodeImage, generateBarcodeDataUrl } from '@/components/barcode-image';
 
 interface GeneratedMember {
   id: number;
@@ -63,15 +64,15 @@ export default function GenerateCardPage() {
       return;
     }
 
-    const headers = ['No', 'ID Member', 'Nama', 'Jenis Member', 'Link QR Code'];
+    const headers = ['No', 'ID Member', 'Nama', 'Jenis Member', 'Link Barcode'];
     const rows = cards.map((card, index) => {
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(card.id_member)}`;
+      const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(card.id_member)}&scale=2&includetext`;
       return [
         index + 1,
         card.id_member,
         card.Nama,
         card.Jenis_Member,
-        qrUrl
+        barcodeUrl
       ];
     });
 
@@ -161,7 +162,7 @@ export default function GenerateCardPage() {
 
       let cardsHtml = '';
       generatedCards.forEach((card) => {
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(card.id_member)}`;
+        const barcodeUrl = generateBarcodeDataUrl(card.id_member, { width: 2, height: 45, displayValue: true });
         cardsHtml += `
           <div class="card">
             <div class="card-header">
@@ -178,8 +179,8 @@ export default function GenerateCardPage() {
                   <span class="info-value id-val">${card.id_member}</span>
                 </div>
               </div>
-              <div class="qr-section">
-                <img class="qr-image" src="${qrCodeUrl}" alt="QR" />
+              <div class="barcode-section">
+                <img class="barcode-image" src="${barcodeUrl}" alt="Barcode" />
               </div>
             </div>
             <div class="card-footer">
@@ -262,7 +263,7 @@ export default function GenerateCardPage() {
                 display: flex;
                 flex-direction: column;
                 gap: 2mm;
-                max-width: 52mm;
+                max-width: 45mm;
               }
               .info-group {
                 display: flex;
@@ -287,20 +288,21 @@ export default function GenerateCardPage() {
                 letter-spacing: 0.5px;
                 color: #334155;
               }
-              .qr-section {
-                width: 16mm;
-                height: 16mm;
+              .barcode-section {
+                width: 34mm;
+                height: 15mm;
                 background: white;
-                padding: 0.8mm;
+                padding: 0.5mm;
                 border-radius: 1mm;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 border: 1px solid #e2e8f0;
               }
-              .qr-image {
+              .barcode-image {
                 width: 100%;
                 height: 100%;
+                object-fit: contain;
               }
               .card-footer {
                 padding: 2mm 4mm 2.5mm 4mm;
@@ -469,11 +471,9 @@ export default function GenerateCardPage() {
                               </span>
                               <h3 className="font-mono text-sm font-bold text-slate-800 mt-2">{card.id_member}</h3>
                             </div>
-                            <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(card.id_member)}`}
-                              alt="QR"
-                              className="w-10 h-10 border p-0.5 bg-white rounded"
-                            />
+                            <div className="bg-white p-1 border rounded border-slate-200 flex items-center justify-center">
+                              <BarcodeImage value={card.id_member} width={1.4} height={32} displayValue={false} className="max-h-8 w-24" />
+                            </div>
                           </div>
                           <div className="text-[10px] text-slate-400 flex justify-between border-t pt-1.5 mt-2">
                             <span>AKTIF / SEUMUR HIDUP</span>
@@ -520,7 +520,7 @@ export default function GenerateCardPage() {
                         doc.open();
                         let cardsHtml = '';
                         allBlankCards.forEach((card) => {
-                          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(card.id_member)}`;
+                          const barcodeUrl = generateBarcodeDataUrl(card.id_member, { width: 2, height: 45, displayValue: true });
                           cardsHtml += `
                             <div class="card">
                               <div class="card-header">
@@ -537,8 +537,8 @@ export default function GenerateCardPage() {
                                     <span class="info-value id-val">${card.id_member}</span>
                                   </div>
                                 </div>
-                                <div class="qr-section">
-                                  <img class="qr-image" src="${qrCodeUrl}" alt="QR" />
+                                <div class="barcode-section">
+                                  <img class="barcode-image" src="${barcodeUrl}" alt="Barcode" />
                                 </div>
                               </div>
                               <div class="card-footer">
@@ -567,8 +567,8 @@ export default function GenerateCardPage() {
                                 .info-label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600; }
                                 .info-value { font-size: 14px; font-weight: 700; color: #1e293b; }
                                 .id-val { font-family: monospace; font-size: 16px; color: #2563eb; }
-                                .qr-section { width: 90px; height: 90px; border: 1px solid #e2e8f0; padding: 4px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-                                .qr-image { width: 100%; height: 100%; object-fit: contain; }
+                                .barcode-section { width: 140px; height: 55px; border: 1px solid #e2e8f0; padding: 4px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+                                .barcode-image { width: 100%; height: 100%; object-fit: contain; }
                                 .card-footer { border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 500; }
                               </style>
                             </head>

@@ -16,6 +16,9 @@ interface TicketData {
   total: number;
   purchaseDate: string;
   email?: string;
+  paymentMethod?: string;
+  idMember?: string;
+  remainingBalance?: number;
 }
 
 interface EmployeeData {
@@ -343,6 +346,12 @@ export default function ReceiptPage() {
             <span className="font-semibold">{data.email}</span>
           </div>
         )}
+        {data.paymentMethod === 'Card Member' && data.idMember && (
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">ID Member</span>
+            <span className="font-semibold">{data.idMember}</span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-1 pb-2 border-b print-section">
@@ -370,6 +379,21 @@ export default function ReceiptPage() {
             Rp {data.total.toLocaleString('id-ID')}
           </span>
         </div>
+        {data.paymentMethod === 'Card Member' && typeof data.remainingBalance === 'number' && (
+          <>
+            <div className="border-t border-dashed mt-1 mb-1"></div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-600">Metode Pembayaran</span>
+              <span className="font-semibold">Card Member</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-600 font-semibold">Sisa Saldo Kartu</span>
+              <span className="font-bold text-green-600">
+                Rp {data.remainingBalance.toLocaleString('id-ID')}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

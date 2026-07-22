@@ -166,6 +166,44 @@ export default function RegulerPage() {
     success: boolean;
   } | null>(null);
 
+  // States for Card Member Balance check
+  const [memberInfo, setMemberInfo] = useState<{ id_member?: string; Nama: string; balance: { amount: number } } | null>(null);
+  const [isVerifyingMember, setIsVerifyingMember] = useState(false);
+  const [memberError, setMemberError] = useState<string | null>(null);
+
+  // Fetch Member Details when ID Member changes
+  useEffect(() => {
+    if (!idMember.trim()) {
+      setMemberInfo(null);
+      setMemberError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsVerifyingMember(true);
+      setMemberError(null);
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${API_BASE_URL}/public/member/search/${encodeURIComponent(idMember.trim())}`);
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || 'Kartu member tidak ditemukan.');
+        }
+        setMemberInfo(result.data);
+        if (result.data && !visitorName.trim()) {
+          setVisitorName(result.data.Nama);
+        }
+      } catch (err: any) {
+        setMemberInfo(null);
+        setMemberError(err.message || 'Gagal memverifikasi kartu.');
+      } finally {
+        setIsVerifyingMember(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [idMember]);
+
   // --- PEMBARUAN STATE HARGA & DISKON ---
   const [priceLoading, setPriceLoading] = useState(true);
   // State untuk menyimpan harga asli sebelum diskon
@@ -307,6 +345,8 @@ export default function RegulerPage() {
         type: 'regular',
         paymentMethod: paymentMethod === 'cash' ? 'Tunai' : paymentMethod === 'qris' ? 'QRIS' : 'Card Member',
         transactionId: result.id || Date.now().toString(),
+        idMember: paymentMethod === 'card_member' ? idMember : undefined,
+        remainingBalance: paymentMethod === 'card_member' && memberInfo ? (memberInfo.balance.amount - totalPayment) : undefined,
       };
       // --- AKHIR PEMBARUAN DATA UNTUK STRUK ---
 
@@ -558,6 +598,38 @@ export default function RegulerPage() {
                       <Camera className="h-4 w-4" />
                     </Button>
                   </div>
+                  {isVerifyingMember && (
+                    <p className="text-xs text-indigo-500 flex items-center gap-1 mt-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Memverifikasi kartu...
+                    </p>
+                  )}
+                  {memberError && (
+                    <p className="text-xs text-red-500 mt-1">{memberError}</p>
+                  )}
+                  {memberInfo && (
+                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-lg p-3 space-y-1.5 text-xs text-indigo-950 mt-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Nomor Kartu</span>
+                        <span className="font-mono font-semibold text-slate-800">{memberInfo.id_member || idMember}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Saldo Kartu</span>
+                        <span className="font-bold text-indigo-700">{formatCurrency(memberInfo.balance.amount)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-indigo-200/50 pt-1.5">
+                        <span className="text-slate-500 font-semibold">Estimasi Sisa Saldo</span>
+                        <span className={`font-bold ${memberInfo.balance.amount - totalPayment >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {formatCurrency(memberInfo.balance.amount - totalPayment)}
+                        </span>
+                      </div>
+                      {memberInfo.balance.amount - totalPayment < 0 && (
+                        <div className="text-red-600 font-medium text-[10px] mt-1 bg-red-50 border border-red-100 rounded p-1.5 flex items-center gap-1">
+                          <span>⚠️ Saldo tidak mencukupi untuk pembelian tiket ini.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -713,7 +785,7 @@ export default function RegulerPage() {
                   isLoading ||
                   priceLoading ||
                   discountedPrice === null ||
-                  (paymentMethod === 'card_member' && !idMember.trim())
+                  (paymentMethod === 'card_member' && (!idMember.trim() || !memberInfo || memberInfo.balance.amount < totalPayment))
                 }
               >
                 {isLoading ? (
