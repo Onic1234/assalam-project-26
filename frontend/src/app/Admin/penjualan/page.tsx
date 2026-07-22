@@ -40,7 +40,30 @@ import {
   QrCode, // Ikon untuk QRIS
   FileSpreadsheet, // Ikon untuk ekspor Excel
   Coins, // Ikon untuk pendapatan
+  Edit,
+  Trash2,
+  Loader2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
 
 // Definisi base URL untuk API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -86,6 +109,145 @@ export default function PenjualanPage() {
     startDate: string | null;
     endDate: string | null;
   }>({ startDate: null, endDate: null });
+
+  // State untuk Edit & Delete Transaksi
+  const [editingVisitor, setEditingVisitor] = useState<Visitor | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    date: string;
+    category: Visitor["category"];
+    quantity: number;
+    paymentMethod: Visitor["paymentMethod"];
+  }>({
+    name: "",
+    date: "",
+    category: "reguler",
+    quantity: 1,
+    paymentMethod: "cash",
+  });
+
+  const handleOpenEdit = (visitor: Visitor) => {
+    setEditingVisitor(visitor);
+    setEditForm({
+      name: visitor.name,
+      date: visitor.date,
+      category: visitor.category,
+      quantity: visitor.quantity,
+      paymentMethod: visitor.paymentMethod,
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateSale = async () => {
+    if (!editingVisitor) return;
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/ticketing/sales/${editingVisitor.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Kuantitas: editForm.quantity,
+          Metode_Pembayaran:
+            editForm.paymentMethod === "qris"
+              ? "QRIS"
+              : editForm.paymentMethod === "card_member"
+              ? "card_member"
+              : "Tunai",
+          Tanggal_Kunjungan: editForm.date,
+          Kategori:
+            editForm.category === "card special"
+              ? "Card Special"
+              : editForm.category.charAt(0).toUpperCase() + editForm.category.slice(1),
+          customerName: editForm.name,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Gagal memperbarui transaksi.");
+      }
+
+      setVisitors((prev) =>
+        prev.map((v) =>
+          v.id === editingVisitor.id
+            ? {
+                ...v,
+                name: editForm.name,
+                date: editForm.date,
+                category: editForm.category,
+                quantity: editForm.quantity,
+                paymentMethod: editForm.paymentMethod,
+              }
+            : v
+        )
+      );
+
+      toast({
+        title: "Berhasil",
+        description: "Data transaksi penjualan berhasil diperbarui.",
+      });
+      setIsEditOpen(false);
+      setEditingVisitor(null);
+    } catch (err: any) {
+      console.error("Error updating sale:", err);
+      toast({
+        title: "Gagal",
+        description: err.message || "Gagal memperbarui data transaksi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteSale = async (id: string) => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    setIsDeleting(true);
+    setDeletingId(id);
+    try {
+      const response = await fetch(`${API_BASE_URL}/ticketing/sales/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Gagal menghapus transaksi.");
+      }
+
+      setVisitors((prev) => prev.filter((v) => v.id !== id));
+
+      toast({
+        title: "Berhasil",
+        description: "Data transaksi penjualan berhasil dihapus.",
+      });
+    } catch (err: any) {
+      console.error("Error deleting sale:", err);
+      toast({
+        title: "Gagal",
+        description: err.message || "Gagal menghapus data transaksi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeletingId(null);
+    }
+  };
 
   // --- FUNGSI HELPER TAMPILAN ---
   const getPaymentMethodLabel = (method: Visitor["paymentMethod"]) =>
@@ -402,7 +564,9 @@ export default function PenjualanPage() {
     };
     return finalFilteredVisitors.reduce((acc, visitor) => {
       acc.total += visitor.quantity;
-      acc[visitor.category] = (acc[visitor.category] || 0) + visitor.quantity;
+      if (visitor.category in acc) {
+        (acc as any)[visitor.category] += visitor.quantity;
+      }
       return acc;
     }, stats);
   }, [finalFilteredVisitors]); // Bergantung pada data yang sudah difilter
@@ -875,12 +1039,13 @@ export default function PenjualanPage() {
                       <TableHead>Metode Pembayaran</TableHead>
                       <TableHead>Kuantitas</TableHead>
                       <TableHead className="text-right font-semibold">Total Harga</TableHead>
+                      <TableHead className="text-center font-semibold">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {!error && finalFilteredVisitors.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           {visitors.length > 0
                             ? "Tidak ada data yang cocok dengan filter Anda."
                             : "Tidak ada data penjualan yang ditemukan."}
@@ -938,6 +1103,53 @@ export default function PenjualanPage() {
                               return (visitor.quantity * price).toLocaleString("id-ID");
                             })()}
                           </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                                onClick={() => handleOpenEdit(visitor)}
+                                title="Edit Transaksi"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                    title="Hapus Transaksi"
+                                    disabled={isDeleting && deletingId === visitor.id}
+                                  >
+                                    {isDeleting && deletingId === visitor.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Hapus Transaksi Penjualan</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Apakah Anda yakin ingin menghapus data transaksi milik <strong>{visitor.name}</strong> (Tanggal: {visitor.date})? Tindakan ini tidak dapat dibatalkan.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteSale(visitor.id)}
+                                      className="bg-red-600 hover:bg-red-700 text-white"
+                                    >
+                                      Hapus Transaksi
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -946,6 +1158,90 @@ export default function PenjualanPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Modal Edit Transaksi */}
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Edit Transaksi Penjualan</DialogTitle>
+              </DialogHeader>
+              {editingVisitor && (
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Nama Pembeli</Label>
+                    <Input
+                      id="edit-name"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-date">Tanggal Kunjungan</Label>
+                    <Input
+                      id="edit-date"
+                      type="date"
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Kategori</Label>
+                    <Select
+                      value={editForm.category}
+                      onValueChange={(val) => setEditForm({ ...editForm, category: val as Visitor["category"] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Kategori" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="reguler">Reguler</SelectItem>
+                        <SelectItem value="santri">Santri</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="ppmi">PPMI</SelectItem>
+                        <SelectItem value="card special">Card Special</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Metode Pembayaran</Label>
+                    <Select
+                      value={editForm.paymentMethod}
+                      onValueChange={(val) => setEditForm({ ...editForm, paymentMethod: val as Visitor["paymentMethod"] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Metode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Tunai</SelectItem>
+                        <SelectItem value="qris">QRIS</SelectItem>
+                        <SelectItem value="card_member">Saldo Kartu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-qty">Kuantitas Tiket</Label>
+                    <Input
+                      id="edit-qty"
+                      type="number"
+                      min={1}
+                      value={editForm.quantity}
+                      onChange={(e) => setEditForm({ ...editForm, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                    />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={isUpdating}>
+                  Batal
+                </Button>
+                <Button onClick={handleUpdateSale} disabled={isUpdating} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+                  {isUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Simpan Perubahan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </SidebarInset>
     </SidebarProvider>

@@ -111,6 +111,39 @@ const routes = [
       description: "Exports all ticket sales to an Excel file.",
     },
   },
+  {
+    method: "PUT",
+    path: "/ticketing/sales/{id}",
+    handler: ticketingController.updateTicketSale,
+    options: {
+      auth: { scope: ["admin"] },
+      validate: {
+        params: Joi.object({
+          id: Joi.number().integer().required(),
+        }),
+        payload: Joi.object({
+          Kuantitas: Joi.number().integer().min(1).optional(),
+          Metode_Pembayaran: Joi.string().optional(),
+          Tanggal_Kunjungan: Joi.string().optional(),
+          Kategori: Joi.string().optional(),
+          customerName: Joi.string().optional().allow("", null),
+        }),
+      },
+    },
+  },
+  {
+    method: "DELETE",
+    path: "/ticketing/sales/{id}",
+    handler: ticketingController.deleteTicketSale,
+    options: {
+      auth: { scope: ["admin"] },
+      validate: {
+        params: Joi.object({
+          id: Joi.number().integer().required(),
+        }),
+      },
+    },
+  },
 ];
 
 module.exports = routes;

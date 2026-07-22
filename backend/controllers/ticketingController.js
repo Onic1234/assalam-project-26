@@ -499,3 +499,59 @@ exports.ticketForMemberById = async (request, h) => {
     return Boom.internal("Gagal memproses check-in member.");
   }
 };
+
+exports.updateTicketSale = async (request, h) => {
+  try {
+    const { id } = request.params;
+    const { Kuantitas, Metode_Pembayaran, Tanggal_Kunjungan, Kategori, customerName } = request.payload || {};
+
+    const sale = await Penjualan.findByPk(id);
+    if (!sale) {
+      return Boom.notFound("Data penjualan tiket tidak ditemukan.");
+    }
+
+    if (Kuantitas !== undefined) sale.Kuantitas = Kuantitas;
+    if (Metode_Pembayaran !== undefined) sale.Metode_Pembayaran = Metode_Pembayaran;
+    if (Tanggal_Kunjungan !== undefined) sale.Tanggal_Kunjungan = Tanggal_Kunjungan;
+    if (Kategori !== undefined) sale.Kategori = Kategori;
+
+    await sale.save();
+
+    if (customerName && sale.Kategori === "Reguler" && sale.CustomerId) {
+      const regulerCustomer = await Reguler.findByPk(sale.CustomerId);
+      if (regulerCustomer) {
+        regulerCustomer.Nama = customerName;
+        await regulerCustomer.save();
+      }
+    }
+
+    return h.response({
+      success: true,
+      message: "Data penjualan tiket berhasil diperbarui.",
+      data: sale,
+    }).code(200);
+  } catch (error) {
+    console.error("Error updating ticket sale:", error);
+    return Boom.internal("Gagal memperbarui data penjualan tiket.");
+  }
+};
+
+exports.deleteTicketSale = async (request, h) => {
+  try {
+    const { id } = request.params;
+    const sale = await Penjualan.findByPk(id);
+    if (!sale) {
+      return Boom.notFound("Data penjualan tiket tidak ditemukan.");
+    }
+
+    await sale.destroy();
+
+    return h.response({
+      success: true,
+      message: "Data penjualan tiket berhasil dihapus.",
+    }).code(200);
+  } catch (error) {
+    console.error("Error deleting ticket sale:", error);
+    return Boom.internal("Gagal menghapus data penjualan tiket.");
+  }
+};
