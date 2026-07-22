@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, CreditCard, Loader2, CheckCircle, AlertCircle, Camera, VideoOff, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+import { BrowserMultiFormatReader } from '@zxing/library';
+
 export default function MemberScanCardPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,40 +25,21 @@ export default function MemberScanCardPage() {
   // States untuk Kamera Scanner
   const [useCamera, setUseCamera] = useState(false);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
-  const scanIntervalRef = useRef<number | null>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-  // 1. Muat library jsQR secara dinamis dari CDN
   useEffect(() => {
-    const scriptId = 'jsqr-cdn-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement;
-
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-      script.async = true;
-      script.onload = () => {
-        setScriptLoaded(true);
-        console.log('[DEBUG] jsQR loaded successfully.');
-      };
-      document.body.appendChild(script);
-    } else {
-      setScriptLoaded(true);
-    }
-
     return () => {
       stopCameraStream();
     };
   }, []);
 
-  // 2. Autofokus input jika tidak memakai kamera
+  // Autofokus input jika tidak memakai kamera
   useEffect(() => {
     if (!useCamera && inputRef.current) {
       inputRef.current.focus();
@@ -68,11 +51,15 @@ export default function MemberScanCardPage() {
     router.push('/Member');
   };
 
-  // 3. Menghentikan stream kamera
+  // Menghentikan stream kamera
   const stopCameraStream = () => {
-    if (scanIntervalRef.current) {
-      cancelAnimationFrame(scanIntervalRef.current);
-      scanIntervalRef.current = null;
+    if (codeReaderRef.current) {
+      try {
+        codeReaderRef.current.reset();
+      } catch (e) {
+        console.error('Error resetting code reader:', e);
+      }
+      codeReaderRef.current = null;
     }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -83,7 +70,7 @@ export default function MemberScanCardPage() {
     }
   };
 
-  // 4. Memulai stream kamera
+  // Memulai stream kamera dengan ZXing Barcode/QR Scanner
   const startCameraStream = async (mode: 'user' | 'environment' = facingMode) => {
     stopCameraStream();
     setError(null);
@@ -95,12 +82,22 @@ export default function MemberScanCardPage() {
       localStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true'); // diperlukan untuk iOS
-        videoRef.current.play();
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
       }
       setUseCamera(true);
-      // Mulai loop pemindaian QR
-      scanIntervalRef.current = requestAnimationFrame(scanTick);
+
+      const codeReader = new BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+
+      if (videoRef.current) {
+        codeReader.decodeFromVideoElement(videoRef.current, (result, err) => {
+          if (result && result.getText()) {
+            console.log('[DEBUG] Barcode / QR Code terdeteksi:', result.getText());
+            handleCodeScanned(result.getText());
+          }
+        });
+      }
     } catch (err) {
       console.error('Gagal mengakses kamera:', err);
       setError('Kamera tidak dapat diakses. Berikan izin akses kamera di browser Anda.');
@@ -108,42 +105,6 @@ export default function MemberScanCardPage() {
     } finally {
       setIsCameraLoading(false);
     }
-  };
-
-  // 5. Loop pemindaian frame video menggunakan jsQR
-  const scanTick = () => {
-    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          // Gambar frame video ke canvas tersembunyi
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          
-          // Decode QR
-          // @ts-ignore
-          if (window.jsQR) {
-            // @ts-ignore
-            const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: 'dontInvert',
-            });
-
-            if (code && code.data) {
-              console.log('[DEBUG] QR Code terdeteksi:', code.data);
-              // Pemicu check-in jika terdeteksi
-              handleCodeScanned(code.data);
-              return; // keluar dari loop scan untuk mencegah request ganda
-            }
-          }
-        }
-      }
-    }
-    // Lanjutkan frame berikutnya
-    scanIntervalRef.current = requestAnimationFrame(scanTick);
   };
 
   // 6. Tangani kode yang didapat dari scan kamera
@@ -374,7 +335,7 @@ export default function MemberScanCardPage() {
             {/* Tombol Toggle Kamera */}
             <Button
               onClick={toggleMode}
-              disabled={isCameraLoading || !scriptLoaded}
+              disabled={isCameraLoading}
               variant="outline"
               className="w-full py-5 border-indigo-500/30 hover:bg-indigo-950 text-indigo-300 hover:text-white"
             >
