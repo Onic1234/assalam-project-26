@@ -1,6 +1,5 @@
 'use client';
 
-import { BrowserMultiFormatReader } from '@zxing/library';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -33,14 +32,26 @@ export default function RegulerPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const codeReaderRef = useRef<any>(null);
 
   const [isScanOpen, setIsScanOpen] = useState(false);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // Dynamic loading of ZXing CDN script for Barcode & QR scanning
   useEffect(() => {
+    const scriptId = 'zxing-cdn-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
     return () => {
       stopCameraStream();
     };
@@ -79,11 +90,12 @@ export default function RegulerPage() {
         await videoRef.current.play();
       }
 
-      const codeReader = new BrowserMultiFormatReader();
-      codeReaderRef.current = codeReader;
+      const ZXingClass = (window as any).ZXing;
+      if (ZXingClass && ZXingClass.BrowserMultiFormatReader && videoRef.current) {
+        const codeReader = new ZXingClass.BrowserMultiFormatReader();
+        codeReaderRef.current = codeReader;
 
-      if (videoRef.current) {
-        (codeReader as any).decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
+        codeReader.decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
           if (result && result.getText()) {
             console.log('[DEBUG] Barcode / QR Code terdeteksi loket:', result.getText());
             setIdMember(result.getText());

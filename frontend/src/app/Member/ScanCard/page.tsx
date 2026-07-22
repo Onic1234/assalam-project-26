@@ -9,8 +9,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, CreditCard, Loader2, CheckCircle, AlertCircle, Camera, VideoOff, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import { BrowserMultiFormatReader } from '@zxing/library';
-
 export default function MemberScanCardPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,13 +25,25 @@ export default function MemberScanCardPage() {
   const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const codeReaderRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+  // Dynamic loading of ZXing CDN script for Barcode & QR scanning
   useEffect(() => {
+    const scriptId = 'zxing-cdn-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
     return () => {
       stopCameraStream();
     };
@@ -87,11 +97,12 @@ export default function MemberScanCardPage() {
       }
       setUseCamera(true);
 
-      const codeReader = new BrowserMultiFormatReader();
-      codeReaderRef.current = codeReader;
+      const ZXingClass = (window as any).ZXing;
+      if (ZXingClass && ZXingClass.BrowserMultiFormatReader && videoRef.current) {
+        const codeReader = new ZXingClass.BrowserMultiFormatReader();
+        codeReaderRef.current = codeReader;
 
-      if (videoRef.current) {
-        (codeReader as any).decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
+        codeReader.decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
           if (result && result.getText()) {
             console.log('[DEBUG] Barcode / QR Code terdeteksi:', result.getText());
             handleCodeScanned(result.getText());

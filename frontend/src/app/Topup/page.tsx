@@ -9,8 +9,6 @@ import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, VideoOff, RefreshCw, Loader2, CheckCircle2, CreditCard, ChevronRight, Wallet, QrCode } from 'lucide-react';
 
-import { BrowserMultiFormatReader } from '@zxing/library';
-
 interface MemberDetails {
   id: number;
   id_member: string;
@@ -34,7 +32,7 @@ export default function PublicTopupPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const codeReaderRef = useRef<any>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Verify Card, 2: Amount & Method, 3: Success
   const [idMemberInput, setIdMemberInput] = useState('');
@@ -55,7 +53,19 @@ export default function PublicTopupPage() {
 
   const PRESETS = [10000, 20000, 50000, 100000, 200000];
 
+  // Dynamic loading of ZXing CDN script for Barcode & QR scanning
   useEffect(() => {
+    const scriptId = 'zxing-cdn-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
     return () => {
       stopCameraStream();
     };
@@ -94,11 +104,12 @@ export default function PublicTopupPage() {
         await videoRef.current.play();
       }
 
-      const codeReader = new BrowserMultiFormatReader();
-      codeReaderRef.current = codeReader;
+      const ZXingClass = (window as any).ZXing;
+      if (ZXingClass && ZXingClass.BrowserMultiFormatReader && videoRef.current) {
+        const codeReader = new ZXingClass.BrowserMultiFormatReader();
+        codeReaderRef.current = codeReader;
 
-      if (videoRef.current) {
-        (codeReader as any).decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
+        codeReader.decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
           if (result && result.getText()) {
             console.log('[DEBUG] Barcode / QR Code scanned on Topup page:', result.getText());
             setIdMemberInput(result.getText());
