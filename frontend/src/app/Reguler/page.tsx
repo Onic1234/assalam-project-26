@@ -1,5 +1,6 @@
 'use client';
 
+import { BrowserMultiFormatReader } from '@zxing/library';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -82,7 +83,7 @@ export default function RegulerPage() {
       codeReaderRef.current = codeReader;
 
       if (videoRef.current) {
-        codeReader.decodeFromVideoElement(videoRef.current, (result, err) => {
+        (codeReader as any).decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
           if (result && result.getText()) {
             console.log('[DEBUG] Barcode / QR Code terdeteksi loket:', result.getText());
             setIdMember(result.getText());
