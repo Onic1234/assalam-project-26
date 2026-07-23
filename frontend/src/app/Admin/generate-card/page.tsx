@@ -313,121 +313,6 @@ export default function GenerateCardPage() {
     }
   };
 
-  // 3. Unduh Gambar Kartu Fisik (Format PNG High-Res 1000x630px)
-  const handleDownloadCardPNG = (card: GeneratedMember) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1000;
-    canvas.height = 630;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Background kartu
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Border luar
-    ctx.strokeStyle = '#3b82f6';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-    // Header kartu
-    const headerGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-    headerGradient.addColorStop(0, '#eff6ff');
-    headerGradient.addColorStop(1, '#dbeafe');
-    ctx.fillStyle = headerGradient;
-    ctx.fillRect(3, 3, canvas.width - 6, 140);
-
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, 143);
-    ctx.lineTo(canvas.width, 143);
-    ctx.stroke();
-
-    // Logo text header
-    ctx.fillStyle = '#1e3a8a';
-    ctx.font = 'bold 44px sans-serif';
-    ctx.fillText('ASSALAM', 40, 65);
-
-    ctx.fillStyle = '#2563eb';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('OLYMPIC POOL STADIUM', 40, 105);
-
-    // Badge Member
-    ctx.fillStyle = '#2563eb';
-    if (ctx.roundRect) {
-      ctx.roundRect(760, 40, 190, 60, 10);
-      ctx.fill();
-    } else {
-      ctx.fillRect(760, 40, 190, 60);
-    }
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('MEMBER', 855, 78);
-    ctx.textAlign = 'left';
-
-    // Body kartu
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('ID KARTU MEMBER', 50, 240);
-
-    ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 44px monospace';
-    ctx.fillText(card.id_member, 50, 305);
-
-    ctx.fillStyle = '#2563eb';
-    ctx.font = '600 22px sans-serif';
-    ctx.fillText('STATUS: AKTIF / SEUMUR HIDUP', 50, 380);
-
-    // Barcode Gambar
-    const barcodeUrl = generateBarcodeDataUrl(card.id_member, { width: 3, height: 80, displayValue: true });
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(520, 190, 430, 240);
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(520, 190, 430, 240);
-      ctx.drawImage(img, 530, 200, 410, 220);
-
-      // Footer Kartu
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(3, 530, canvas.width - 6, 97);
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 530);
-      ctx.lineTo(canvas.width, 530);
-      ctx.stroke();
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '500 20px sans-serif';
-      ctx.fillText('Official Member Card • Assalam Stadium', 40, 582);
-
-      ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText('BLANK CARD', 960, 582);
-
-      // Trigger download
-      const pngUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = pngUrl;
-      link.download = `kartu-member-${card.id_member}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast({
-        title: 'Gambar Kartu Diunduh',
-        description: `File kartu-member-${card.id_member}.png berhasil diunduh.`,
-      });
-    };
-    img.src = barcodeUrl;
-  };
-
   const handleGenerate = async () => {
     if (count < 1 || count > 100) {
       toast({
@@ -641,9 +526,6 @@ export default function GenerateCardPage() {
                                 <DropdownMenuItem onClick={() => handlePrintCards([card], `Kartu-${card.id_member}`)}>
                                   <Printer className="mr-2 h-4 w-4 text-indigo-600" /> Cetak / PDF Kartu
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDownloadCardPNG(card)}>
-                                  <ImageIcon className="mr-2 h-4 w-4 text-blue-600" /> Unduh Gambar (PNG)
-                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleExportCSV([card], `kartu-${card.id_member}.csv`)}>
                                   <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Ekspor Data Excel (CSV)
                                 </DropdownMenuItem>
@@ -731,10 +613,6 @@ export default function GenerateCardPage() {
                               <DropdownMenuItem onClick={() => handlePrintCards([card], `Kartu-${card.id_member}`)}>
                                 <Printer className="mr-2 h-3.5 w-3.5 text-indigo-600" />
                                 <span className="text-xs">Cetak / PDF Kartu</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDownloadCardPNG(card)}>
-                                <ImageIcon className="mr-2 h-3.5 w-3.5 text-blue-600" />
-                                <span className="text-xs">Unduh Gambar (PNG)</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleExportCSV([card], `kartu-${card.id_member}.csv`)}>
                                 <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-emerald-600" />
