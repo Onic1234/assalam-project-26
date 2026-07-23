@@ -10,7 +10,26 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { AppSidebar } from '@/components/app-sidebar';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Printer, Loader2, Sparkles, CheckCircle2, Download, Barcode } from 'lucide-react';
+import { 
+  CreditCard, 
+  Printer, 
+  Loader2, 
+  Sparkles, 
+  CheckCircle2, 
+  Download, 
+  FileSpreadsheet, 
+  Image as ImageIcon,
+  MoreVertical,
+  FileText
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { BarcodeImage, generateBarcodeDataUrl } from '@/components/barcode-image';
 
 interface GeneratedMember {
@@ -54,6 +73,7 @@ export default function GenerateCardPage() {
     fetchBlankCards();
   }, []);
 
+  // 1. Ekspor Data ke Excel CSV
   const handleExportCSV = (cards: GeneratedMember[], filename = 'daftar-kartu-member-kosong.csv') => {
     if (cards.length === 0) {
       toast({
@@ -77,7 +97,6 @@ export default function GenerateCardPage() {
       ].join(',');
     });
 
-    // Format CSV dengan pemisah koma
     const csvContent = [
       headers.join(','),
       ...rows
@@ -94,61 +113,14 @@ export default function GenerateCardPage() {
     document.body.removeChild(link);
 
     toast({
-      title: 'Ekspor Berhasil',
+      title: 'Ekspor CSV Berhasil',
       description: `File ${filename} berhasil diunduh.`,
     });
   };
 
-  const handleGenerate = async () => {
-    if (count < 1 || count > 100) {
-      toast({
-        title: 'Error',
-        description: 'Jumlah kartu yang dibuat harus antara 1 sampai 100.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/customers/member/bulk-generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify({
-          count,
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Gagal memproses pembuatan kartu.');
-      }
-
-      setGeneratedCards(result.data || []);
-      fetchBlankCards();
-      toast({
-        title: 'Sukses',
-        description: `${result.data?.length || count} Kartu member baru berhasil dibuat!`,
-      });
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        title: 'Gagal',
-        description: error.message || 'Terjadi kesalahan saat memproses pembuatan kartu.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePrintAll = () => {
-    if (generatedCards.length === 0) return;
+  // 2. Cetak / Simpan Kartu ke PDF (Desain Kartu Member Fisik Standar CR80)
+  const handlePrintCards = (cards: GeneratedMember[], title = 'Cetak Kartu Member') => {
+    if (cards.length === 0) return;
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -162,7 +134,7 @@ export default function GenerateCardPage() {
       doc.open();
 
       let cardsHtml = '';
-      generatedCards.forEach((card) => {
+      cards.forEach((card) => {
         const barcodeUrl = generateBarcodeDataUrl(card.id_member, { width: 2, height: 45, displayValue: true });
         cardsHtml += `
           <div class="card">
@@ -195,7 +167,7 @@ export default function GenerateCardPage() {
       doc.write(`
         <html>
           <head>
-            <title>Cetak Kartu Member Massal</title>
+            <title>${title}</title>
             <style>
               @page {
                 size: 85.6mm 53.98mm;
@@ -206,6 +178,7 @@ export default function GenerateCardPage() {
                 padding: 0;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                font-family: system-ui, -apple-system, sans-serif;
               }
               .card {
                 width: 85.6mm;
@@ -221,7 +194,6 @@ export default function GenerateCardPage() {
                 border: 0.5px solid #cbd5e1;
                 background: #ffffff;
                 color: #1e1b4b;
-                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
               }
               .card-header {
                 padding: 3.5mm 4mm 2mm 4mm;
@@ -327,15 +299,180 @@ export default function GenerateCardPage() {
                 setTimeout(function() {
                   window.print();
                   setTimeout(function() {
-                    window.frameElement.parentNode.removeChild(window.frameElement);
+                    if (window.frameElement && window.frameElement.parentNode) {
+                      window.frameElement.parentNode.removeChild(window.frameElement);
+                    }
                   }, 500);
-                }, 1000);
+                }, 500);
               };
             </script>
           </body>
         </html>
       `);
       doc.close();
+    }
+  };
+
+  // 3. Unduh Gambar Kartu Fisik (Format PNG High-Res 1000x630px)
+  const handleDownloadCardPNG = (card: GeneratedMember) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 630;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Background kartu
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Border luar
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+    // Header kartu
+    const headerGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    headerGradient.addColorStop(0, '#eff6ff');
+    headerGradient.addColorStop(1, '#dbeafe');
+    ctx.fillStyle = headerGradient;
+    ctx.fillRect(3, 3, canvas.width - 6, 140);
+
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 143);
+    ctx.lineTo(canvas.width, 143);
+    ctx.stroke();
+
+    // Logo text header
+    ctx.fillStyle = '#1e3a8a';
+    ctx.font = 'bold 44px sans-serif';
+    ctx.fillText('ASSALAM', 40, 65);
+
+    ctx.fillStyle = '#2563eb';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('OLYMPIC POOL STADIUM', 40, 105);
+
+    // Badge Member
+    ctx.fillStyle = '#2563eb';
+    if (ctx.roundRect) {
+      ctx.roundRect(760, 40, 190, 60, 10);
+      ctx.fill();
+    } else {
+      ctx.fillRect(760, 40, 190, 60);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('MEMBER', 855, 78);
+    ctx.textAlign = 'left';
+
+    // Body kartu
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('ID KARTU MEMBER', 50, 240);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 44px monospace';
+    ctx.fillText(card.id_member, 50, 305);
+
+    ctx.fillStyle = '#2563eb';
+    ctx.font = '600 22px sans-serif';
+    ctx.fillText('STATUS: AKTIF / SEUMUR HIDUP', 50, 380);
+
+    // Barcode Gambar
+    const barcodeUrl = generateBarcodeDataUrl(card.id_member, { width: 3, height: 80, displayValue: true });
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(520, 190, 430, 240);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(520, 190, 430, 240);
+      ctx.drawImage(img, 530, 200, 410, 220);
+
+      // Footer Kartu
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(3, 530, canvas.width - 6, 97);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 530);
+      ctx.lineTo(canvas.width, 530);
+      ctx.stroke();
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '500 20px sans-serif';
+      ctx.fillText('Official Member Card • Assalam Stadium', 40, 582);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('BLANK CARD', 960, 582);
+
+      // Trigger download
+      const pngUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = pngUrl;
+      link.download = `kartu-member-${card.id_member}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: 'Gambar Kartu Diunduh',
+        description: `File kartu-member-${card.id_member}.png berhasil diunduh.`,
+      });
+    };
+    img.src = barcodeUrl;
+  };
+
+  const handleGenerate = async () => {
+    if (count < 1 || count > 100) {
+      toast({
+        title: 'Error',
+        description: 'Jumlah kartu yang dibuat harus antara 1 sampai 100.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/customers/member/bulk-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          count,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Gagal memproses pembuatan kartu.');
+      }
+
+      setGeneratedCards(result.data || []);
+      fetchBlankCards();
+      toast({
+        title: 'Sukses',
+        description: `${result.data?.length || count} Kartu member baru berhasil dibuat!`,
+      });
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: 'Gagal',
+        description: error.message || 'Terjadi kesalahan saat memproses pembuatan kartu.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -430,17 +567,27 @@ export default function GenerateCardPage() {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div>
                   <CardTitle className="text-lg">Hasil Pembuatan Kartu</CardTitle>
-                  <CardDescription>Tinjau dan cetak kartu kosong yang baru saja dibuat</CardDescription>
+                  <CardDescription>Tinjau dan unduh/cetak kartu kosong yang baru saja dibuat</CardDescription>
                 </div>
                 {generatedCards.length > 0 && (
-                  <Button
-                    onClick={handlePrintAll}
-                    variant="outline"
-                    className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    Cetak Semua Kartu ({generatedCards.length})
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handlePrintCards(generatedCards, 'Cetak Kartu Member Baru')}
+                      variant="outline"
+                      className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Cetak / PDF ({generatedCards.length})
+                    </Button>
+                    <Button
+                      onClick={() => handleExportCSV(generatedCards, 'kartu-member-baru.csv')}
+                      variant="outline"
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    >
+                      <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+                      Excel (CSV)
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent className="flex-1 flex flex-col justify-between">
@@ -476,9 +623,32 @@ export default function GenerateCardPage() {
                               <BarcodeImage value={card.id_member} width={1.4} height={32} displayValue={false} className="max-h-8 w-24" />
                             </div>
                           </div>
-                          <div className="text-[10px] text-slate-400 flex justify-between border-t pt-1.5 mt-2">
+                          <div className="text-[10px] text-slate-400 flex justify-between items-center border-t pt-1.5 mt-2">
                             <span>AKTIF / SEUMUR HIDUP</span>
-                            <span className="font-bold text-slate-500 uppercase">Blank Card</span>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                                >
+                                  <Download className="h-3 w-3 mr-1" /> Opsi Kartu
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Unduh / Cetak {card.id_member}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handlePrintCards([card], `Kartu-${card.id_member}`)}>
+                                  <Printer className="mr-2 h-4 w-4 text-indigo-600" /> Cetak / PDF Kartu
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDownloadCardPNG(card)}>
+                                  <ImageIcon className="mr-2 h-4 w-4 text-blue-600" /> Unduh Gambar (PNG)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExportCSV([card], `kartu-${card.id_member}.csv`)}>
+                                  <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Ekspor Data Excel (CSV)
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       ))}
@@ -499,102 +669,22 @@ export default function GenerateCardPage() {
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleExportCSV(allBlankCards, 'semua-kartu-member-kosong.csv')}
-                    variant="outline"
-                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                    disabled={allBlankCards.length === 0}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Ekspor CSV (Excel)
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (allBlankCards.length === 0) return;
-                      const iframe = document.createElement('iframe');
-                      iframe.style.position = 'absolute';
-                      iframe.style.width = '0';
-                      iframe.style.height = '0';
-                      iframe.style.border = '0';
-                      document.body.appendChild(iframe);
-                      const doc = iframe.contentWindow?.document;
-                      if (doc) {
-                        doc.open();
-                        let cardsHtml = '';
-                        allBlankCards.forEach((card) => {
-                          const barcodeUrl = generateBarcodeDataUrl(card.id_member, { width: 2, height: 45, displayValue: true });
-                          cardsHtml += `
-                            <div class="card">
-                              <div class="card-header">
-                                <div>
-                                  <div class="logo-text">ASSALAM</div>
-                                  <div class="logo-sub">Olympic Pool Stadium</div>
-                                </div>
-                                <div class="card-type">MEMBER</div>
-                              </div>
-                              <div class="card-body">
-                                <div class="info-section">
-                                  <div class="info-group">
-                                    <span class="info-label">ID Kartu Member</span>
-                                    <span class="info-value id-val">${card.id_member}</span>
-                                  </div>
-                                </div>
-                                <div class="barcode-section">
-                                  <img class="barcode-image" src="${barcodeUrl}" alt="Barcode" />
-                                </div>
-                              </div>
-                              <div class="card-footer">
-                                <span>STATUS: Blank Card</span>
-                                <span>Masa Berlaku: Aktif Selamanya</span>
-                              </div>
-                            </div>
-                          `;
-                        });
-                        doc.write(`
-                          <html>
-                            <head>
-                              <title>Cetak Semua Kartu Kosong</title>
-                              <style>
-                                @page { size: A4; margin: 10mm; }
-                                body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background: white; }
-                                .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-                                .card { border: 1.5px solid #2563eb; border-radius: 12px; padding: 16px; height: 260px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); position: relative; overflow: hidden; page-break-inside: avoid; }
-                                .card-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
-                                .logo-text { font-size: 20px; font-weight: 800; color: #1e3a8a; letter-spacing: 1px; }
-                                .logo-sub { font-size: 10px; color: #3b82f6; font-weight: 600; }
-                                .card-type { font-size: 12px; font-weight: 700; background: #2563eb; color: white; padding: 3px 8px; rounded: 4px; border-radius: 4px; }
-                                .card-body { display: flex; justify-content: space-between; align-items: center; flex: 1; padding: 12px 0; }
-                                .info-section { display: flex; flex-direction: column; gap: 8px; }
-                                .info-group { display: flex; flex-direction: column; }
-                                .info-label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600; }
-                                .info-value { font-size: 14px; font-weight: 700; color: #1e293b; }
-                                .id-val { font-family: monospace; font-size: 16px; color: #2563eb; }
-                                .barcode-section { width: 140px; height: 55px; border: 1px solid #e2e8f0; padding: 4px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-                                .barcode-image { width: 100%; height: 100%; object-fit: contain; }
-                                .card-footer { border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 500; }
-                              </style>
-                            </head>
-                            <body>
-                              <div class="grid">
-                                ${cardsHtml}
-                              </div>
-                              <script>
-                                window.onload = function() {
-                                  window.print();
-                                  setTimeout(function() { window.frameElement.remove(); }, 100);
-                                };
-                              </script>
-                            </body>
-                          </html>
-                        `);
-                        doc.close();
-                      }
-                    }}
+                    onClick={() => handlePrintCards(allBlankCards, 'Cetak Semua Kartu Kosong')}
                     variant="outline"
                     className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
                     disabled={allBlankCards.length === 0}
                   >
                     <Printer className="mr-2 h-4 w-4" />
-                    Cetak Semua Kartu Kosong
+                    Cetak / PDF Semua Kartu
+                  </Button>
+                  <Button
+                    onClick={() => handleExportCSV(allBlankCards, 'semua-kartu-member-kosong.csv')}
+                    variant="outline"
+                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    disabled={allBlankCards.length === 0}
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+                    Ekspor CSV (Excel)
                   </Button>
                 </div>
               </CardHeader>
@@ -608,29 +698,50 @@ export default function GenerateCardPage() {
                     Belum ada database kartu kosong yang terdaftar.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[300px] overflow-y-auto pr-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[350px] overflow-y-auto pr-2">
                     {allBlankCards.map((card) => (
                       <div
                         key={card.id}
-                        className="border border-slate-200 rounded-lg p-3 bg-slate-50 flex flex-col justify-between h-[100px] hover:border-indigo-300 transition-all duration-300"
+                        className="border border-slate-200 rounded-lg p-3 bg-slate-50 flex flex-col justify-between h-[105px] hover:border-indigo-300 transition-all duration-300"
                       >
                         <div>
-                          <span className="text-[8px] font-bold text-slate-500 uppercase bg-slate-200 px-1.5 py-0.5 rounded">
+                          <span className="text-[8px] font-bold text-indigo-600 uppercase bg-indigo-50 px-1.5 py-0.5 rounded">
                             ID MEMBER
                           </span>
-                          <h4 className="font-mono text-xs font-bold text-slate-700 mt-2">{card.id_member}</h4>
+                          <h4 className="font-mono text-xs font-bold text-slate-700 mt-1.5">{card.id_member}</h4>
                         </div>
-                        <div className="flex justify-between items-center border-t pt-1 mt-1 text-[8px] text-slate-400">
-                          <span>READY</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 text-indigo-600 hover:bg-indigo-100"
-                            onClick={() => handleExportCSV([card], `kartu-${card.id_member}.csv`)}
-                            title="Ekspor CSV Kartu Ini"
-                          >
-                            <Download className="h-3 w-3" />
-                          </Button>
+                        <div className="flex justify-between items-center border-t pt-1.5 mt-1 text-[8px] text-slate-400">
+                          <span className="font-semibold text-emerald-600">READY</span>
+                          
+                          {/* Opsi Kartu: Cetak (PDF), Gambar (PNG), atau Excel (CSV) */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 text-indigo-600 hover:bg-indigo-100 rounded-full"
+                                title="Pilihan Unduh / Cetak Kartu"
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel className="text-xs">Format Kartu {card.id_member}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handlePrintCards([card], `Kartu-${card.id_member}`)}>
+                                <Printer className="mr-2 h-3.5 w-3.5 text-indigo-600" />
+                                <span className="text-xs">Cetak / PDF Kartu</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadCardPNG(card)}>
+                                <ImageIcon className="mr-2 h-3.5 w-3.5 text-blue-600" />
+                                <span className="text-xs">Unduh Gambar (PNG)</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleExportCSV([card], `kartu-${card.id_member}.csv`)}>
+                                <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-emerald-600" />
+                                <span className="text-xs">Ekspor Data Excel (CSV)</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     ))}
