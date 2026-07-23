@@ -53,19 +53,39 @@ export default function PublicTopupPage() {
 
   const PRESETS = [10000, 20000, 50000, 100000, 200000];
 
-  // Dynamic loading of ZXing CDN script for Barcode & QR scanning
+  const loadZXingScript = (): Promise<any> => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') return resolve(null);
+      if ((window as any).ZXing && (window as any).ZXing.BrowserMultiFormatReader) {
+        return resolve((window as any).ZXing);
+      }
+
+      const scriptId = 'zxing-cdn-script';
+      let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+
+      script.onload = () => resolve((window as any).ZXing);
+      script.onerror = () => {
+        const fallbackScript = document.createElement('script');
+        fallbackScript.id = 'zxing-cdn-script-fallback';
+        fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+        fallbackScript.async = true;
+        fallbackScript.onload = () => resolve((window as any).ZXing);
+        fallbackScript.onerror = () => resolve(null);
+        document.body.appendChild(fallbackScript);
+      };
+    });
+  };
+
   useEffect(() => {
-    const scriptId = 'zxing-cdn-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement;
-
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
+    loadZXingScript();
     return () => {
       stopCameraStream();
     };
@@ -81,11 +101,15 @@ export default function PublicTopupPage() {
       codeReaderRef.current = null;
     }
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      try {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch (e) {}
       localStreamRef.current = null;
     }
     if (videoRef.current) {
-      videoRef.current.srcObject = null;
+      try {
+        videoRef.current.srcObject = null;
+      } catch (e) {}
     }
   };
 
@@ -94,34 +118,49 @@ export default function PublicTopupPage() {
     setCameraError(null);
     setIsCameraLoading(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode, width: { ideal: 640 }, height: { ideal: 480 } },
-      });
-      localStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        await videoRef.current.play();
+      const ZXingClass = await loadZXingScript();
+      if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
+        throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
       }
 
-      const ZXingClass = (window as any).ZXing;
-      if (ZXingClass && ZXingClass.BrowserMultiFormatReader && videoRef.current) {
-        const codeReader = new ZXingClass.BrowserMultiFormatReader();
-        codeReaderRef.current = codeReader;
+      let attempts = 0;
+      while (!videoRef.current && attempts < 10) {
+        await new Promise((r) => setTimeout(r, 100));
+        attempts++;
+      }
 
-        codeReader.decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
+      if (!videoRef.current) {
+        throw new Error('Elemen kamera tidak ditemukan.');
+      }
+
+      const codeReader = new ZXingClass.BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: mode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      await codeReader.decodeFromConstraints(
+        constraints,
+        videoRef.current,
+        (result: any, err: any) => {
           if (result && result.getText()) {
-            console.log('[DEBUG] Barcode / QR Code scanned on Topup page:', result.getText());
-            setIdMemberInput(result.getText());
+            const scannedCode = result.getText().trim();
+            console.log('[DEBUG] Barcode / QR Code scanned on Topup page:', scannedCode);
+            setIdMemberInput(scannedCode);
             setIsScanOpen(false);
             stopCameraStream();
-            handleVerifyCard(result.getText());
+            handleVerifyCard(scannedCode);
           }
-        });
-      }
-    } catch (err) {
+        }
+      );
+    } catch (err: any) {
       console.error('Gagal mengakses kamera:', err);
-      setCameraError('Kamera tidak dapat diakses. Silakan berikan izin akses kamera.');
+      setCameraError(err.message || 'Kamera tidak dapat diakses. Silakan berikan izin akses kamera.');
     } finally {
       setIsCameraLoading(false);
     }
