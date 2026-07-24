@@ -8,8 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "PKasir - Aplikasi Kasir Sekolah",
-  description: "Aplikasi kasir untuk kantin sekolah dengan fitur Face ID dan barcode scanning",
+  title: "Assalaam Olympic Pool (AOPS)",
+  description: "Aplikasi Kasir & Sistem Manajemen Assalaam Olympic Pool Stadium",
 }
 
 export default function RootLayout({

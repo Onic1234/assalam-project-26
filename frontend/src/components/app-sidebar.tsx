@@ -247,7 +247,7 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
             const decodedToken = decodeJWTToken(authToken);
             let userRole: 'admin' | 'kasir' = 'kasir';
             let userName = 'User';
-            let userEmail = 'user@pkasir.com';
+            let userEmail = 'user@assalaam.id';
 
             if (decodedToken) {
               // Debug: log the decoded token to see available fields
@@ -272,8 +272,8 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
                 decodedToken.user_email ||
                 decodedToken.mail ||
                 (userRole === 'admin'
-                  ? 'admin@pkasir.com'
-                  : 'kasir@pkasir.com');
+                  ? 'admin@assalaam.id'
+                  : 'kasir@assalaam.id');
 
               console.log('Extracted role:', userRole);
               console.log('Extracted name:', userName);
@@ -288,8 +288,8 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
               userEmail =
                 localStorage.getItem('userEmail') ||
                 (userRole === 'admin'
-                  ? 'admin@pkasir.com'
-                  : 'kasir@pkasir.com');
+                  ? 'admin@assalaam.id'
+                  : 'kasir@assalaam.id');
             }
 
             setAuthData({
@@ -483,7 +483,7 @@ export function AppSidebar({ className, ...props }: AppSidebarProps) {
               name: authData.user?.name || (isAdmin ? 'Admin' : 'Kasir'),
               email:
                 authData.user?.email ||
-                (isAdmin ? 'admin@pkasir.com' : 'kasir@pkasir.com'),
+                (isAdmin ? 'admin@assalaam.id' : 'kasir@assalaam.id'),
               avatar: '/placeholder.svg?height=40&width=40',
             }}
             onLogout={handleLogout}

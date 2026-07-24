@@ -1468,7 +1468,16 @@ export default function Dashboard() {
     <div className="h-screen w-full flex flex-col overflow-hidden">
       <header className="border-b bg-white shadow-sm">
         <div className="flex h-16 items-center px-8 justify-between">
-          <h1 className="text-2xl font-semibold">Payment Dashboard</h1>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <Image
+              src="/icons/Logo AOPS.png"
+              alt="AOPS Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
+            Assalaam Olympic Pool POS
+          </h1>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium">

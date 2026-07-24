@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "PKasir App",
-  description: "Aplikasi Kasir untuk Kantin Sekolah",
+  title: "Assalaam Olympic Pool - Kasir POS",
+  description: "Sistem Kasir & POS Assalaam Olympic Pool Stadium",
 }
 
 export default function KasirLayout({
