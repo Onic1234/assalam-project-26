@@ -210,7 +210,7 @@ const init = async () => {
       sub: false,
       nbf: true,
       exp: true,
-      maxAgeSec: 14400,
+      maxAgeSec: 604800, // 7 days (7 * 24 * 3600)
     },
     validate: validate,
   });

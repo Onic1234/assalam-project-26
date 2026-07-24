@@ -116,6 +116,22 @@ interface DetectionFeedback {
   timestamp?: Date;
 }
 
+const isTokenExpired = (token: string | null): boolean => {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
+    );
+    if (!payload.exp) return false;
+    // 10-second buffer
+    return Date.now() >= payload.exp * 1000 - 10000;
+  } catch (e) {
+    return true;
+  }
+};
+
 export default function Dashboard() {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
@@ -195,16 +211,22 @@ export default function Dashboard() {
     const savedToken = localStorage.getItem('kasirToken');
     const savedUser = localStorage.getItem('kasirUser');
     if (savedToken && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        if (parsedUser.role === 'kasir') {
-          setAuthenticatedUser(parsedUser);
-          setAuthToken(savedToken);
-          setAuthFlow('dashboard');
-          setScanMode('product');
+      if (isTokenExpired(savedToken)) {
+        console.warn('Saved kasir token is expired. Removing stale session.');
+        localStorage.removeItem('kasirToken');
+        localStorage.removeItem('kasirUser');
+      } else {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser.role === 'kasir') {
+            setAuthenticatedUser(parsedUser);
+            setAuthToken(savedToken);
+            setAuthFlow('dashboard');
+            setScanMode('product');
+          }
+        } catch (e) {
+          console.error('Error parsing saved cashier user:', e);
         }
-      } catch (e) {
-        console.error('Error parsing saved cashier user:', e);
       }
     }
   }, []);
@@ -630,9 +652,21 @@ export default function Dashboard() {
 
   const handlePayment = useCallback(
     async (paymentMethod: 'Saldo' | 'Tunai' | 'QRIS') => {
-      if (!authenticatedUser || !authToken) {
-        alert('Sesi tidak valid. Silakan login kembali.');
-        resetToOptions();
+      if (!authenticatedUser || !authToken || isTokenExpired(authToken)) {
+        localStorage.removeItem('kasirToken');
+        localStorage.removeItem('kasirUser');
+        setAuthToken(null);
+        setPaymentResult({
+          success: false,
+          message: 'Sesi Anda telah berakhir (Token expired). Silakan login kembali.',
+          studentName: authenticatedUser?.nama_santri || authenticatedUser?.username || '',
+          totalAmount: totalPrice,
+          items: scannedProducts,
+        });
+        setShowPaymentResult(true);
+        if (authenticatedUser?.role === 'kasir') {
+          setIsKasirLoginModalOpen(true);
+        }
         return;
       }
 
@@ -658,6 +692,14 @@ export default function Dashboard() {
         });
 
         const result = await response.json();
+
+        const isExpiredError =
+          response.status === 401 ||
+          (result.message &&
+            (result.message.toLowerCase().includes('token') ||
+              result.message.toLowerCase().includes('expired') ||
+              result.message.toLowerCase().includes('unauthorized'))) ||
+          result.error === 'Unauthorized';
 
         if (result.success) {
           setPaymentResult({
@@ -689,6 +731,22 @@ export default function Dashboard() {
 
           setScannedProducts([]);
           setShowPaymentResult(true);
+        } else if (isExpiredError) {
+          localStorage.removeItem('kasirToken');
+          localStorage.removeItem('kasirUser');
+          setAuthToken(null);
+          setPaymentResult({
+            success: false,
+            message: 'Sesi Anda telah berakhir (Token expired). Silakan login kembali.',
+            studentName:
+              authenticatedUser.nama_santri || authenticatedUser.username || '',
+            totalAmount: totalPrice,
+            items: scannedProducts,
+          });
+          setShowPaymentResult(true);
+          if (authenticatedUser.role === 'kasir') {
+            setIsKasirLoginModalOpen(true);
+          }
         } else {
           setPaymentResult({
             success: false,

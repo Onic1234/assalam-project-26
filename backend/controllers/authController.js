@@ -18,7 +18,7 @@ const generateAdminToken = (admin) => {
   return jwt.sign(
     { id: admin.id, username: admin.username, role: admin.role },
     process.env.JWT_SECRET || 'default_secret_key',
-    { expiresIn: '24h' }
+    { expiresIn: '7d' }
   );
 };
 
@@ -31,7 +31,7 @@ const generateSantriToken = (santri) => {
       role: 'santri',
     },
     process.env.JWT_SECRET || 'default_secret_key',
-    { expiresIn: '24h' }
+    { expiresIn: '7d' }
   );
 };
 
