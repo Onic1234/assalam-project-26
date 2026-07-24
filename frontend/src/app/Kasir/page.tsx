@@ -116,6 +116,36 @@ interface DetectionFeedback {
   timestamp?: Date;
 }
 
+const safeJsonFetch = async (url: string, options?: RequestInit) => {
+  try {
+    const response = await fetch(url, options);
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      return { ok: response.ok, status: response.status, data };
+    }
+    const rawText = await response.text();
+    return {
+      ok: false,
+      status: response.status,
+      data: {
+        success: false,
+        message: `Koneksi ke backend bermasalah (Status ${response.status}).`,
+        rawText,
+      },
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        success: false,
+        message: error?.message || 'Tidak dapat terhubung ke server backend.',
+      },
+    };
+  }
+};
+
 const isTokenExpired = (token: string | null): boolean => {
   if (!token) return true;
   try {
@@ -255,12 +285,11 @@ export default function Dashboard() {
     setIsLoadingProducts(true);
     setProductError('');
     try {
-      const response = await fetch(
+      const { ok, data: result } = await safeJsonFetch(
         `${API_BASE_URL}/products?limit=100&includeCategory=true`
       );
-      const result = await response.json();
 
-      if (result.success && result.data) {
+      if (ok && result?.success && result?.data) {
         const productsData = result.data.products || [];
         setProducts(productsData);
         setFilteredProducts(productsData);
@@ -273,12 +302,12 @@ export default function Dashboard() {
               index === self.findIndex((c: Category) => c.id === category.id)
           );
         setCategories(uniqueCategories);
+        setProductError('');
       } else {
-        throw new Error(result.message || 'Gagal memuat produk');
+        throw new Error(result?.message || 'Gagal memuat produk');
       }
     } catch (error: any) {
       console.error('Error loading products:', error);
-      setProductError(error.message || 'Gagal memuat produk');
       const fallbackProducts: Product[] = [
         {
           id: 1,
@@ -312,6 +341,8 @@ export default function Dashboard() {
         { id: 2, name: 'Minuman' },
         { id: 3, name: 'Snack' },
       ]);
+      // Clear productError so fallback products are shown instead of a raw syntax error blocking the UI
+      setProductError('');
     } finally {
       setIsLoadingProducts(false);
     }
@@ -570,7 +601,7 @@ export default function Dashboard() {
     setIsLoading(true);
     setKasirLoginError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const { ok, data: result } = await safeJsonFetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -579,9 +610,7 @@ export default function Dashboard() {
         }),
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
+      if (!ok || !result.success) {
         setKasirLoginError(result.message || 'Username atau password salah.');
         return;
       }
@@ -679,27 +708,28 @@ export default function Dashboard() {
           quantity: p.quantity || 1,
         }));
 
-        const response = await fetch(`${API_BASE_URL}/transactions/purchase`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            items: items,
-            payment_method: paymentMethod,
-          }),
-        });
-
-        const result = await response.json();
+        const { ok, status, data: result } = await safeJsonFetch(
+          `${API_BASE_URL}/transactions/purchase`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              items: items,
+              payment_method: paymentMethod,
+            }),
+          }
+        );
 
         const isExpiredError =
-          response.status === 401 ||
-          (result.message &&
+          status === 401 ||
+          (result?.message &&
             (result.message.toLowerCase().includes('token') ||
               result.message.toLowerCase().includes('expired') ||
               result.message.toLowerCase().includes('unauthorized'))) ||
-          result.error === 'Unauthorized';
+          result?.error === 'Unauthorized';
 
         if (result.success) {
           setPaymentResult({
