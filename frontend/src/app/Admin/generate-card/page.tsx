@@ -381,11 +381,11 @@ export default function GenerateCardPage() {
           </Breadcrumb>
         </header>
 
-        <main className="flex-1 space-y-6 p-8 bg-slate-50/50">
-          <div className="flex items-center justify-between">
+        <main className="flex-1 space-y-4 sm:space-y-6 p-4 sm:p-6 md:p-8 bg-slate-50/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Generate Kartu Member</h1>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Generate Kartu Member</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Buat dan cetak kartu member kosong secara massal dengan nomor ID otomatis.
               </p>
             </div>
@@ -395,8 +395,8 @@ export default function GenerateCardPage() {
             {/* Form Generate */}
             <Card className="md:col-span-1 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg">Kustomisasi Kartu</CardTitle>
-                <CardDescription>Tentukan jumlah kartu member kosong yang ingin dibuat</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Kustomisasi Kartu</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Tentukan jumlah kartu member kosong yang ingin dibuat</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -429,7 +429,7 @@ export default function GenerateCardPage() {
 
                 <Button
                   onClick={handleGenerate}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white mt-2"
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white mt-2 text-xs sm:text-sm"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -449,17 +449,17 @@ export default function GenerateCardPage() {
 
             {/* List Preview */}
             <Card className="md:col-span-2 shadow-sm flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 space-y-0 pb-3">
                 <div>
-                  <CardTitle className="text-lg">Hasil Pembuatan Kartu</CardTitle>
-                  <CardDescription>Tinjau dan unduh/cetak kartu kosong yang baru saja dibuat</CardDescription>
+                  <CardTitle className="text-base sm:text-lg font-bold">Hasil Pembuatan Kartu</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Tinjau dan unduh/cetak kartu kosong yang baru saja dibuat</CardDescription>
                 </div>
                 {generatedCards.length > 0 && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button
                       onClick={() => handlePrintCards(generatedCards, 'Cetak Kartu Member Baru')}
                       variant="outline"
-                      className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                      className="w-full sm:w-auto text-xs sm:text-sm border-indigo-600 text-indigo-600 hover:bg-indigo-50"
                     >
                       <Printer className="mr-2 h-4 w-4" />
                       Cetak / PDF ({generatedCards.length})
@@ -467,7 +467,7 @@ export default function GenerateCardPage() {
                     <Button
                       onClick={() => handleExportCSV(generatedCards, 'kartu-member-baru.csv')}
                       variant="outline"
-                      className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                      className="w-full sm:w-auto text-xs sm:text-sm border-slate-300 text-slate-700 hover:bg-slate-50"
                     >
                       <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
                       Excel (CSV)
@@ -491,7 +491,7 @@ export default function GenerateCardPage() {
                       <span>{generatedCards.length} kartu berhasil terdaftar di database sebagai "Kartu Kosong".</span>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4 max-h-[450px] overflow-y-auto pr-2 py-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[450px] overflow-y-auto pr-2 py-1">
                       {generatedCards.map((card) => (
                         <div
                           key={card.id}
@@ -542,18 +542,18 @@ export default function GenerateCardPage() {
 
             {/* Database Blank Cards List */}
             <Card className="md:col-span-3 shadow-sm mt-6">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 space-y-0 pb-3 border-b">
                 <div>
-                  <CardTitle className="text-lg font-bold">Database Semua Kartu Kosong</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-base sm:text-lg font-bold">Database Semua Kartu Kosong</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Total {allBlankCards.length} kartu kosong tersimpan di database yang siap digunakan / diekspor
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
                     onClick={() => handlePrintCards(allBlankCards, 'Cetak Semua Kartu Kosong')}
                     variant="outline"
-                    className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                    className="w-full sm:w-auto text-xs sm:text-sm border-indigo-600 text-indigo-600 hover:bg-indigo-50"
                     disabled={allBlankCards.length === 0}
                   >
                     <Printer className="mr-2 h-4 w-4" />
@@ -562,7 +562,7 @@ export default function GenerateCardPage() {
                   <Button
                     onClick={() => handleExportCSV(allBlankCards, 'semua-kartu-member-kosong.csv')}
                     variant="outline"
-                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    className="w-full sm:w-auto text-xs sm:text-sm border-slate-300 text-slate-700 hover:bg-slate-50"
                     disabled={allBlankCards.length === 0}
                   >
                     <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
@@ -580,7 +580,7 @@ export default function GenerateCardPage() {
                     Belum ada database kartu kosong yang terdaftar.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[350px] overflow-y-auto pr-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[380px] overflow-y-auto pr-2">
                     {allBlankCards.map((card) => (
                       <div
                         key={card.id}
