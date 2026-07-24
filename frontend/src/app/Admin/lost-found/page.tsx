@@ -252,6 +252,8 @@ export default function LostFoundPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
   const handlePurgeImages = async () => {
     if (
       !confirm(
@@ -1848,4 +1850,4 @@ export default function LostFoundPage() {
       </SidebarInset>
     </SidebarProvider>
   );
-}}
+}
