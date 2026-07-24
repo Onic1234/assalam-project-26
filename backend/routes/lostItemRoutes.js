@@ -111,6 +111,20 @@ const lostItemRoutes = [
       description: "Delete lost item by ID",
     },
   },
+  {
+    method: "POST",
+    path: "/lost-items/purge-images",
+    handler: lostItemController.purgeOldImages,
+    options: {
+      auth: { scope: ["admin"] },
+      validate: {
+        payload: Joi.object({
+          days: Joi.number().integer().positive().optional().default(30),
+        }).optional(),
+      },
+      description: "Purge images older than 30 days to free VPS storage while keeping transaction records",
+    },
+  },
 ];
 
 module.exports = lostItemRoutes;

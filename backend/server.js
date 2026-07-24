@@ -277,6 +277,37 @@ const init = async () => {
   // Jalankan server
   await server.start();
   console.log(`✅ Server running on ${server.info.uri}`);
+
+  // Automatic cleanup for Lost & Found images older than 30 days
+  const runAutoImageCleanup = async () => {
+    try {
+      const { LostItem } = require("./models");
+      const { Op } = require("sequelize");
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
+
+      const [count] = await LostItem.update(
+        { foto_barang: null, foto_ktp: null },
+        {
+          where: {
+            createdAt: { [Op.lt]: cutoffDate },
+            [Op.or]: [
+              { foto_barang: { [Op.ne]: null } },
+              { foto_ktp: { [Op.ne]: null } },
+            ],
+          },
+        }
+      );
+      if (count > 0) {
+        console.log(`🧹 [Auto-Cleanup] Cleaned ${count} Lost & Found photos older than 30 days.`);
+      }
+    } catch (err) {
+      console.error("⚠️ Auto image cleanup error:", err.message);
+    }
+  };
+
+  setTimeout(runAutoImageCleanup, 5000);
+  setInterval(runAutoImageCleanup, 24 * 60 * 60 * 1000);
 };
 
 // Tangani error global

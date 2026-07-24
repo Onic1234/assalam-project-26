@@ -252,6 +252,32 @@ export default function LostFoundPage() {
     } finally {
       setIsLoading(false);
     }
+  const handlePurgeImages = async () => {
+    if (
+      !confirm(
+        'Apakah Anda yakin ingin membersihkan foto barang & KTP yang berusia lebih dari 30 hari?\n\nCatatan: Data riwayat transaksi, tanggal, lokasi, dan pemilik akan TETAP TERSIMPAN 100% di database.'
+      )
+    ) {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/lost-items/purge-images`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ days: 30 }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Gagal membersihkan foto');
+      }
+      toast.success(data.message || 'Foto berusia > 30 hari berhasil dibersihkan dari penyimpanan.');
+      fetchItems();
+    } catch (err) {
+      handleApiError(err, 'Gagal membersihkan foto usang');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -759,6 +785,15 @@ export default function LostFoundPage() {
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Export Excel
               </Button>
+              <Button
+                onClick={handlePurgeImages}
+                variant="outline"
+                className="h-9 border-amber-600 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/20"
+                title="Hapus file foto yang berusia >30 hari untuk menghemat memori VPS (Data transaksi tetap tersimpan)"
+              >
+                <Trash2 className="mr-2 h-4 w-4 text-amber-600" />
+                Bersihkan Foto &gt; 30 Hari
+              </Button>
             </div>
 
             <div className="flex items-center gap-3">
@@ -982,7 +1017,10 @@ export default function LostFoundPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <Archive className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+                          <div className="flex flex-col items-center justify-center text-slate-400">
+                            <Archive className="h-10 w-10 text-slate-300 dark:text-slate-700 mb-1" />
+                            <span className="text-[10px] text-muted-foreground font-medium">Foto Diarsip (&gt;30 hari)</span>
+                          </div>
                         )}
                         <Badge
                           variant={item.status === 'Lost' ? 'destructive' : 'secondary'}
@@ -1810,4 +1848,4 @@ export default function LostFoundPage() {
       </SidebarInset>
     </SidebarProvider>
   );
-}
+}}

@@ -325,6 +325,50 @@ const lostItemController = {
       return sendResponse(h, 500, false, "Terjadi kesalahan server", error.message);
     }
   },
+
+  // 6. Purge images older than 30 days to save VPS disk storage while preserving all item records
+  purgeOldImages: async (request, h) => {
+    try {
+      const days = (request.payload && request.payload.days) || 30;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+
+      const [affectedRows] = await LostItem.update(
+        {
+          foto_barang: null,
+          foto_ktp: null,
+        },
+        {
+          where: {
+            createdAt: {
+              [Op.lt]: cutoffDate,
+            },
+            [Op.or]: [
+              { foto_barang: { [Op.ne]: null } },
+              { foto_ktp: { [Op.ne]: null } },
+            ],
+          },
+        }
+      );
+
+      return sendResponse(
+        h,
+        200,
+        true,
+        `Berhasil membersihkan foto barang/KTP yang berumur lebih dari ${days} hari. (${affectedRows} data dibersihkan)`,
+        { affectedRows, days }
+      );
+    } catch (error) {
+      console.error("Error in purgeOldImages:", error);
+      return sendResponse(
+        h,
+        500,
+        false,
+        "Terjadi kesalahan server saat membersihkan foto",
+        error.message
+      );
+    }
+  },
 };
 
 module.exports = lostItemController;
