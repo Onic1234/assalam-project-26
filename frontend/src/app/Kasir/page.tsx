@@ -1491,121 +1491,219 @@ export default function Dashboard() {
       <div className="flex-1 overflow-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
           <div className="p-4 lg:p-6 border-b lg:border-b-0 lg:border-r flex flex-col min-h-[50vh] lg:min-h-0">
-            <Card className="w-full h-full flex flex-col">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <QrCode className="h-6 w-6 text-green-500" />
-                  Product Scanner
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col pt-2">
-                <div 
-                  className={`relative flex-1 rounded-md border-2 border-dashed overflow-hidden mb-6 transition-colors flex flex-col items-center justify-center min-h-[300px] ${
-                    isDragOver 
-                      ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' 
-                      : uploadedImage 
-                        ? 'border-muted bg-muted/20' 
-                        : 'border-muted-foreground/20 hover:border-green-500/50 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  {uploadedImage ? (
-                    <div className="relative w-full h-full flex items-center justify-center bg-slate-950 p-2">
-                      <img 
-                        src={uploadedImage} 
-                        alt="Preview Foto Produk" 
-                        className="max-w-full max-h-full object-contain rounded"
-                      />
-                      
-                      {isScanningImage && (
-                        <>
-                          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
-                          <div className="animate-laser" />
-                          <div className="absolute inset-0 flex items-center justify-center text-white">
-                            <div className="bg-slate-900/80 px-4 py-2 rounded-full flex items-center gap-2 shadow-lg border border-white/10">
-                              <Loader2 className="h-4 w-4 animate-spin text-green-400" />
-                              <span className="text-sm font-medium">Memindai Foto...</span>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center p-6 text-center">
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={handleFileChange}
-                        disabled={isLoading}
-                      />
-                      <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4 text-green-600 dark:text-green-400 transition-transform duration-300 hover:scale-105">
-                        <Upload className="h-8 w-8" />
-                      </div>
-                      <h3 className="font-semibold text-lg mb-1">Unggah Foto Produk</h3>
-                      <p className="text-sm text-muted-foreground max-w-xs mb-3">
-                        Seret & lepas foto produk di sini, atau klik untuk memilih file dari perangkat Anda.
-                      </p>
-                      <Badge variant="secondary" className="px-2.5 py-1 text-xs">
-                        Mendukung gambar JPG, PNG, WEBP
-                      </Badge>
-                    </label>
-                  )}
+            <Card className="w-full h-full flex flex-col overflow-hidden">
+              <CardHeader className="pb-3 border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                    <Package className="h-6 w-6 text-green-600" />
+                    Katalog Produk
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === 'grid' ? 'default' : 'outline'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setViewMode('grid')}
+                      title="Tampilan Grid"
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'outline'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setViewMode('list')}
+                      title="Tampilan List"
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsScanResultDialogOpen(true)}
+                      className="text-xs text-muted-foreground hover:text-foreground hidden sm:flex items-center gap-1"
+                      title="Unggah Foto (Opsional)"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Foto
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
-                  {uploadedImage ? (
-                    <>
-                      <Button
-                        variant="default"
-                        onClick={startPhotoScan}
-                        disabled={isScanningImage || isLoading}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        <QrCode className="mr-2 h-4 w-4" />
-                        {isScanningImage ? 'Memindai...' : 'Pindai Foto'}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleRemovePhoto}
-                        disabled={isScanningImage || isLoading}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  ) : (
+                {/* Search Bar & Category Pills */}
+                <div className="space-y-3 pt-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Cari nama produk..."
+                      className="pl-9 text-sm"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Categories Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
                     <Button
-                      variant="outline"
-                      onClick={() => setIsProductModalOpen(true)}
-                      disabled={isLoading}
-                      className="flex-1"
+                      variant={selectedCategory === null ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedCategory(null)}
+                      className="h-7 text-xs rounded-full px-3"
                     >
-                      <ShoppingCart className="mr-2 h-4 w-4" />
-                      Pilih Manual
+                      Semua
                     </Button>
-                  )}
+                    {categories.map((category) => (
+                      <Button
+                        key={category.id}
+                        variant={selectedCategory === category.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedCategory(category.id)}
+                        className="h-7 text-xs rounded-full px-3 whitespace-nowrap"
+                      >
+                        {category.name}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
+              </CardHeader>
+
+              <CardContent className="flex-1 overflow-auto p-4 bg-slate-50/50 dark:bg-slate-950/20">
+                {isLoadingProducts ? (
+                  <div className="flex items-center justify-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                    <Package className="h-12 w-12 mb-2 opacity-40" />
+                    <p className="text-sm font-medium">Tidak ada produk ditemukan</p>
+                  </div>
+                ) : (
+                  <div
+                    className={
+                      viewMode === 'grid'
+                        ? 'grid grid-cols-2 sm:grid-cols-3 gap-3'
+                        : 'flex flex-col gap-2'
+                    }
+                  >
+                    {filteredProducts.map((product) => (
+                      <Card
+                        key={product.id}
+                        onClick={() => addProductToCart(product)}
+                        className={`group cursor-pointer hover:border-green-500 hover:shadow-md transition-all border bg-white dark:bg-slate-900 ${
+                          viewMode === 'list' ? 'flex items-center p-2.5 gap-3' : 'overflow-hidden flex flex-col justify-between'
+                        }`}
+                      >
+                        {viewMode === 'grid' ? (
+                          <>
+                            <div className="relative h-28 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center p-2">
+                              <Image
+                                src={
+                                  product.image ||
+                                  '/placeholder.svg?height=100&width=100'
+                                }
+                                alt={product.name}
+                                width={90}
+                                height={90}
+                                className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <Badge
+                                variant={
+                                  product.stock > 10
+                                    ? 'secondary'
+                                    : product.stock > 0
+                                    ? 'outline'
+                                    : 'destructive'
+                                }
+                                className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0 bg-white/90 dark:bg-slate-900/90 shadow-sm"
+                              >
+                                Stok: {product.stock}
+                              </Badge>
+                            </div>
+                            <div className="p-3 flex flex-col flex-1 justify-between">
+                              <div>
+                                {product.category && (
+                                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block mb-0.5">
+                                    {product.category.name}
+                                  </span>
+                                )}
+                                <h4 className="font-semibold text-xs sm:text-sm line-clamp-1 group-hover:text-green-600 transition-colors">
+                                  {product.name}
+                                </h4>
+                              </div>
+                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <span className="font-bold text-green-600 text-xs sm:text-sm">
+                                  Rp {product.price.toLocaleString()}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 rounded-full bg-green-50 text-green-600 hover:bg-green-600 hover:text-white group-hover:bg-green-600 group-hover:text-white transition-colors"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 rounded bg-slate-100 dark:bg-slate-800 flex-shrink-0 flex items-center justify-center p-1">
+                              <Image
+                                src={
+                                  product.image ||
+                                  '/placeholder.svg?height=50&width=50'
+                                }
+                                alt={product.name}
+                                width={48}
+                                height={48}
+                                className="max-h-full max-w-full object-contain"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm truncate group-hover:text-green-600">
+                                {product.name}
+                              </h4>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-bold text-green-600">
+                                  Rp {product.price.toLocaleString()}
+                                </span>
+                                <span>•</span>
+                                <span>Stok: {product.stock}</span>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-2.5 text-xs text-green-600 border-green-200 hover:bg-green-600 hover:text-white"
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              Tambah
+                            </Button>
+                          </>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
           <div className="p-4 lg:p-6 flex flex-col min-h-[50vh] lg:min-h-0">
             <Card className="w-full h-full flex flex-col">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <ShoppingCart className="h-6 w-6" />
-                  Produk Terpindai ({scannedProducts.length})
+              <CardHeader className="pb-4 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <ShoppingCart className="h-6 w-6 text-green-600" />
+                  Produk Terpilih ({scannedProducts.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col pt-2">
+              <CardContent className="flex-1 flex flex-col pt-4">
                 {scannedProducts.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                    <QrCode className="h-32 w-32 mb-6 opacity-30" />
-                    <p className="text-xl mb-2">Belum ada produk</p>
-                    <p className="text-sm text-center">
-                      Pilih produk secara manual
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
+                    <ShoppingCart className="h-20 w-20 mb-4 opacity-20 text-muted-foreground" />
+                    <p className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-1">Belum ada produk dipilih</p>
+                    <p className="text-xs text-muted-foreground max-w-xs">
+                      Klik produk pada katalog di sebelah kiri untuk memasukkannya ke keranjang transaksi.
                     </p>
                   </div>
                 ) : (
