@@ -38,6 +38,29 @@ export default function RegulerPage() {
   const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+
+  const fetchVideoDevices = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(videoInputs);
+      const savedDeviceId = typeof window !== 'undefined' ? localStorage.getItem('preferred_camera_device_id') : null;
+      if (savedDeviceId && videoInputs.some((d) => d.deviceId === savedDeviceId)) {
+        setSelectedDeviceId(savedDeviceId);
+        return savedDeviceId;
+      } else if (videoInputs.length > 0) {
+        const defaultId = videoInputs[0].deviceId;
+        setSelectedDeviceId(defaultId);
+        return defaultId;
+      }
+    } catch (e) {
+      console.error('Error enumerating video devices:', e);
+    }
+    return '';
+  };
 
   const loadZXingScript = (): Promise<any> => {
     return new Promise((resolve) => {
@@ -99,11 +122,12 @@ export default function RegulerPage() {
     }
   };
 
-  const startCameraStream = async (mode: 'user' | 'environment' = facingMode) => {
+  const startCameraStream = async (targetDeviceId?: string) => {
     stopCameraStream();
     setCameraError(null);
     setIsCameraLoading(true);
     try {
+      const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
       const ZXingClass = await loadZXingScript();
       if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
         throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
@@ -123,11 +147,9 @@ export default function RegulerPage() {
       codeReaderRef.current = codeReader;
 
       const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: mode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: activeDeviceId
+          ? { deviceId: { exact: activeDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       };
 
       await codeReader.decodeFromConstraints(
@@ -920,6 +942,29 @@ export default function RegulerPage() {
               Arahkan QR Code kartu member ke kamera untuk dipindai secara otomatis.
             </DialogDescription>
           </DialogHeader>
+
+          {videoDevices.length > 0 && (
+            <div className="flex items-center gap-2 px-1 py-1.5 bg-slate-100 dark:bg-slate-800 rounded border text-xs">
+              <Camera className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+              <span className="font-semibold text-slate-600 dark:text-slate-300 flex-shrink-0">Pilih Kamera:</span>
+              <select
+                value={selectedDeviceId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setSelectedDeviceId(newId);
+                  localStorage.setItem('preferred_camera_device_id', newId);
+                  startCameraStream(newId);
+                }}
+                className="flex-1 h-7 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+              >
+                {videoDevices.map((device, idx) => (
+                  <option key={device.deviceId || idx} value={device.deviceId}>
+                    {device.label || `Kamera USB / Eksternal ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border rounded-lg overflow-hidden relative min-h-[300px]">
             {cameraError ? (

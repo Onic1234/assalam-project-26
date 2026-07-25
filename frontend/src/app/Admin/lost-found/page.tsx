@@ -168,8 +168,31 @@ export default function LostFoundPage() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraMode, setCameraMode] = useState<'add' | 'edit' | 'claim' | 'edit_ktp'>('add');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const fetchVideoDevices = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return '';
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(videoInputs);
+      const savedDeviceId = typeof window !== 'undefined' ? localStorage.getItem('preferred_camera_device_id') : null;
+      if (savedDeviceId && videoInputs.some((d) => d.deviceId === savedDeviceId)) {
+        setSelectedDeviceId(savedDeviceId);
+        return savedDeviceId;
+      } else if (videoInputs.length > 0) {
+        const defaultId = videoInputs[0].deviceId;
+        setSelectedDeviceId(defaultId);
+        return defaultId;
+      }
+    } catch (e) {
+      console.error('Error enumerating video devices:', e);
+    }
+    return '';
+  };
 
   // Selected item states
   const [selectedItem, setSelectedItem] = useState<LostItem | null>(null);
@@ -287,7 +310,7 @@ export default function LostFoundPage() {
   }, []);
 
   // Camera functions
-  const startCameraStream = async (mode: 'add' | 'edit' | 'claim' | 'edit_ktp') => {
+  const startCameraStream = async (mode: 'add' | 'edit' | 'claim' | 'edit_ktp', targetDeviceId?: string) => {
     setCameraMode(mode);
     setCameraError(null);
     setIsCameraActive(true);
@@ -295,12 +318,19 @@ export default function LostFoundPage() {
     // Wait for dialog rendering to resolve ref
     setTimeout(async () => {
       try {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+
+        const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
+
+        const videoConstraints = activeDeviceId
+          ? { deviceId: { exact: activeDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } };
+
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment', // back camera by default on mobile
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
+          video: videoConstraints,
           audio: false,
         });
 
@@ -1818,6 +1848,29 @@ export default function LostFoundPage() {
                 Ambil Foto Barang
               </DialogTitle>
             </DialogHeader>
+
+            {videoDevices.length > 0 && (
+              <div className="flex items-center gap-2 px-1 py-1.5 bg-slate-100 dark:bg-slate-800 rounded border text-xs">
+                <Camera className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+                <span className="font-semibold text-slate-600 dark:text-slate-300 flex-shrink-0">Pilih Kamera:</span>
+                <select
+                  value={selectedDeviceId}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setSelectedDeviceId(newId);
+                    localStorage.setItem('preferred_camera_device_id', newId);
+                    startCameraStream(cameraMode, newId);
+                  }}
+                  className="flex-1 h-7 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-red-500 font-medium"
+                >
+                  {videoDevices.map((device, idx) => (
+                    <option key={device.deviceId || idx} value={device.deviceId}>
+                      {device.label || `Kamera USB / Eksternal ${idx + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="relative aspect-video w-full rounded-md border overflow-hidden bg-black flex items-center justify-center">
               {cameraError ? (
                 <div className="p-4 text-center text-xs text-red-400 flex flex-col items-center gap-2">

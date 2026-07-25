@@ -24,6 +24,29 @@ export default function MemberScanCardPage() {
   const [useCamera, setUseCamera] = useState(false);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+
+  const fetchVideoDevices = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return '';
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(videoInputs);
+      const savedDeviceId = typeof window !== 'undefined' ? localStorage.getItem('preferred_camera_device_id') : null;
+      if (savedDeviceId && videoInputs.some((d) => d.deviceId === savedDeviceId)) {
+        setSelectedDeviceId(savedDeviceId);
+        return savedDeviceId;
+      } else if (videoInputs.length > 0) {
+        const defaultId = videoInputs[0].deviceId;
+        setSelectedDeviceId(defaultId);
+        return defaultId;
+      }
+    } catch (e) {
+      console.error('Error enumerating video devices:', e);
+    }
+    return '';
+  };
 
   const codeReaderRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -106,11 +129,12 @@ export default function MemberScanCardPage() {
   };
 
   // Memulai stream kamera dengan ZXing Barcode/QR Scanner
-  const startCameraStream = async (mode: 'user' | 'environment' = facingMode) => {
+  const startCameraStream = async (targetDeviceId?: string) => {
     stopCameraStream();
     setError(null);
     setIsCameraLoading(true);
     try {
+      const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
       const ZXingClass = await loadZXingScript();
       if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
         throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
@@ -132,11 +156,9 @@ export default function MemberScanCardPage() {
       codeReaderRef.current = codeReader;
 
       const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: mode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: activeDeviceId
+          ? { deviceId: { exact: activeDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       };
 
       await codeReader.decodeFromConstraints(
@@ -327,31 +349,43 @@ export default function MemberScanCardPage() {
             
             {/* Viewfinder Kamera Scanner */}
             {useCamera ? (
-              <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-indigo-500/40">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                />
-                <canvas ref={canvasRef} className="hidden" />
-                
-                {/* Overlay Scanning Laser */}
-                <div className="absolute inset-0 border-2 border-dashed border-indigo-400/30 m-6 rounded flex items-center justify-center pointer-events-none">
-                  <div className="w-full h-[2px] bg-red-500 shadow-md shadow-red-500 absolute animate-[scanLaser_2.5s_ease-in-out_infinite]" />
-                  <span className="text-xs text-indigo-300 bg-slate-900/80 px-2 py-1 rounded">Memindai Barcode / QR...</span>
+              <div className="space-y-2">
+                {videoDevices.length > 0 && (
+                  <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-800/80 rounded border border-indigo-500/30 text-xs">
+                    <Camera className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" />
+                    <span className="font-semibold text-slate-300 flex-shrink-0">Pilih Kamera:</span>
+                    <select
+                      value={selectedDeviceId}
+                      onChange={(e) => {
+                        const newId = e.target.value;
+                        setSelectedDeviceId(newId);
+                        localStorage.setItem('preferred_camera_device_id', newId);
+                        startCameraStream(newId);
+                      }}
+                      className="flex-1 h-7 text-xs rounded border border-indigo-500/30 bg-slate-900 text-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                    >
+                      {videoDevices.map((device, idx) => (
+                        <option key={device.deviceId || idx} value={device.deviceId}>
+                          {device.label || `Kamera USB / Eksternal ${idx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-indigo-500/40">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                  
+                  {/* Overlay Scanning Laser */}
+                  <div className="absolute inset-0 border-2 border-dashed border-indigo-400/30 m-6 rounded flex items-center justify-center pointer-events-none">
+                    <div className="w-full h-[2px] bg-red-500 shadow-md shadow-red-500 absolute animate-[scanLaser_2.5s_ease-in-out_infinite]" />
+                    <span className="text-xs text-indigo-300 bg-slate-900/80 px-2 py-1 rounded">Memindai Barcode / QR...</span>
+                  </div>
                 </div>
-                {/* Tombol Switch Kamera */}
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation(); // mencegah page click refocusing
-                    toggleFacingMode();
-                  }}
-                  size="sm"
-                  variant="secondary"
-                  className="absolute top-2 right-2 bg-slate-900/80 border border-indigo-500/30 hover:bg-slate-800 text-white gap-1.5 text-xs h-8"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Kamera {facingMode === 'environment' ? 'Depan' : 'Belakang'}
-                </Button>
               </div>
             ) : (
               /* Form Manual/USB Input */

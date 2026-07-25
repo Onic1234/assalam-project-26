@@ -225,8 +225,33 @@ export default function Dashboard() {
   const [isScanResultDialogOpen, setIsScanResultDialogOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+
+  const fetchVideoDevices = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return '';
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(videoInputs);
+      const savedDeviceId = typeof window !== 'undefined' ? localStorage.getItem('preferred_camera_device_id') : null;
+      if (savedDeviceId && videoInputs.some((d) => d.deviceId === savedDeviceId)) {
+        setSelectedDeviceId(savedDeviceId);
+        return savedDeviceId;
+      } else if (videoInputs.length > 0) {
+        const defaultId = videoInputs[0].deviceId;
+        setSelectedDeviceId(defaultId);
+        return defaultId;
+      }
+    } catch (e) {
+      console.error('Error enumerating video devices:', e);
+    }
+    return '';
+  };
+
   useEffect(() => {
     setIsClient(true);
+    fetchVideoDevices();
     if (navigator.permissions) {
       navigator.permissions
         .query({ name: 'camera' as PermissionName })
@@ -261,8 +286,8 @@ export default function Dashboard() {
     }
   }, []);
 
-  const loadModels = async () => {
-    if (modelsLoaded) return;
+  const loadModels = async (): Promise<boolean> => {
+    if (modelsLoaded) return true;
     setIsLoadingModels(true);
     try {
       const MODEL_URL = '/models';
@@ -273,9 +298,11 @@ export default function Dashboard() {
       ]);
       setModelsLoaded(true);
       console.log('Model face-api.js berhasil dimuat.');
+      return true;
     } catch (err) {
       console.error('Error loading face-api models:', err);
       setCameraError('Gagal memuat model AI. Periksa konsol untuk detail.');
+      return false;
     } finally {
       setIsLoadingModels(false);
     }
@@ -431,12 +458,11 @@ export default function Dashboard() {
     setCameraError('');
   }, []);
 
-  const startCamera = useCallback(async () => {
-    if (!isClient) return;
-    if (!modelsLoaded && scanMode === 'face') {
-      setCameraError('Model AI belum siap. Harap tunggu...');
-      await loadModels();
-      if (!modelsLoaded) {
+  const startCamera = async (targetDeviceId?: string) => {
+    if (scanMode === 'face' && !modelsLoaded) {
+      setCameraError('Memuat model AI... Harap tunggu');
+      const loaded = await loadModels();
+      if (!loaded) {
         setCameraError('Tidak dapat memuat model AI. Tidak bisa melanjutkan.');
         return;
       }
@@ -451,13 +477,22 @@ export default function Dashboard() {
         throw new Error('Kamera tidak didukung di browser ini');
       }
 
-      const constraints = {
-        video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          facingMode: scanMode === 'product' ? 'environment' : 'user',
-          frameRate: { ideal: 30, max: 60 },
-        },
+      const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
+
+      const constraints: MediaStreamConstraints = {
+        video: activeDeviceId
+          ? {
+              deviceId: { exact: activeDeviceId },
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 },
+              frameRate: { ideal: 30, max: 60 },
+            }
+          : {
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 },
+              facingMode: scanMode === 'product' ? 'environment' : 'user',
+              frameRate: { ideal: 30, max: 60 },
+            },
         audio: false,
       };
 
@@ -502,7 +537,7 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [isClient, stopCamera, scanMode, modelsLoaded]);
+  };
 
   const handleSantriFaceScan = useCallback(async () => {
     if (!videoRef.current || !isCameraActive || !videoReady || !modelsLoaded) {
@@ -957,6 +992,29 @@ export default function Dashboard() {
           <p className="text-muted-foreground">
             Posisikan wajah Anda di dalam area kamera.
           </p>
+
+          {videoDevices.length > 0 && (
+            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded border text-xs text-left max-w-md mx-auto">
+              <Camera className="h-4 w-4 text-blue-500 flex-shrink-0" />
+              <span className="font-semibold text-slate-600 dark:text-slate-300 flex-shrink-0">Pilih Kamera:</span>
+              <select
+                value={selectedDeviceId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setSelectedDeviceId(newId);
+                  localStorage.setItem('preferred_camera_device_id', newId);
+                  startCamera(newId);
+                }}
+                className="flex-1 h-7 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+              >
+                {videoDevices.map((device, idx) => (
+                  <option key={device.deviceId || idx} value={device.deviceId}>
+                    {device.label || `Kamera USB / Eksternal ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {cameraError && (
