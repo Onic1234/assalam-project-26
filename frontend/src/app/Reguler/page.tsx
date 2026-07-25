@@ -43,18 +43,17 @@ export default function RegulerPage() {
 
   const fetchVideoDevices = async () => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return '';
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput' && d.deviceId);
       setVideoDevices(videoInputs);
       const savedDeviceId = typeof window !== 'undefined' ? localStorage.getItem('preferred_camera_device_id') : null;
       if (savedDeviceId && videoInputs.some((d) => d.deviceId === savedDeviceId)) {
         setSelectedDeviceId(savedDeviceId);
         return savedDeviceId;
-      } else if (videoInputs.length > 0) {
-        const defaultId = videoInputs[0].deviceId;
-        setSelectedDeviceId(defaultId);
-        return defaultId;
+      } else if (videoInputs.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoInputs[0].deviceId);
+        return videoInputs[0].deviceId;
       }
     } catch (e) {
       console.error('Error enumerating video devices:', e);
@@ -127,7 +126,6 @@ export default function RegulerPage() {
     setCameraError(null);
     setIsCameraLoading(true);
     try {
-      const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
       const ZXingClass = await loadZXingScript();
       if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
         throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
@@ -146,29 +144,42 @@ export default function RegulerPage() {
       const codeReader = new ZXingClass.BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
 
-      const constraints: MediaStreamConstraints = {
-        video: activeDeviceId
-          ? { deviceId: { exact: activeDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      const requestedId = targetDeviceId !== undefined ? targetDeviceId : selectedDeviceId;
+
+      let videoConstraint: any = { facingMode: 'environment' };
+      if (requestedId && requestedId.trim() !== '') {
+        videoConstraint = { deviceId: { exact: requestedId } };
+      }
+
+      const onScanResult = (result: any) => {
+        if (result && result.getText()) {
+          const scannedCode = result.getText().trim();
+          console.log('[DEBUG] Barcode / QR Code terdeteksi loket:', scannedCode);
+          setIdMember(scannedCode);
+          handleCloseScan();
+        }
       };
 
-      await codeReader.decodeFromConstraints(
-        constraints,
-        videoRef.current,
-        (result: any, err: any) => {
-          if (result && result.getText()) {
-            const scannedCode = result.getText().trim();
-            console.log('[DEBUG] Barcode / QR Code terdeteksi loket:', scannedCode);
-            setIdMember(scannedCode);
-            setIsScanOpen(false);
-            stopCameraStream();
-          }
-        }
-      );
+      try {
+        await codeReader.decodeFromConstraints(
+          { video: videoConstraint },
+          videoRef.current,
+          onScanResult
+        );
+      } catch (firstErr) {
+        console.warn('Camera decoding with constraint failed, falling back to simple video:', firstErr);
+        await codeReader.decodeFromConstraints(
+          { video: true },
+          videoRef.current,
+          onScanResult
+        );
+      }
+
+      setIsCameraLoading(false);
+      fetchVideoDevices();
     } catch (err: any) {
-      console.error('Gagal mengakses kamera:', err);
+      console.error('Error starting camera:', err);
       setCameraError(err.message || 'Kamera tidak dapat diakses. Berikan izin akses kamera.');
-    } finally {
       setIsCameraLoading(false);
     }
   };

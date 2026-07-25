@@ -477,26 +477,32 @@ export default function Dashboard() {
         throw new Error('Kamera tidak didukung di browser ini');
       }
 
-      const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
+      const requestedId = targetDeviceId !== undefined ? targetDeviceId : selectedDeviceId;
 
-      const constraints: MediaStreamConstraints = {
-        video: activeDeviceId
-          ? {
-              deviceId: { exact: activeDeviceId },
-              width: { ideal: 1280, max: 1920 },
-              height: { ideal: 720, max: 1080 },
-              frameRate: { ideal: 30, max: 60 },
-            }
-          : {
-              width: { ideal: 1280, max: 1920 },
-              height: { ideal: 720, max: 1080 },
-              facingMode: scanMode === 'product' ? 'environment' : 'user',
-              frameRate: { ideal: 30, max: 60 },
-            },
-        audio: false,
+      let videoConstraint: any = {
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        facingMode: scanMode === 'product' ? 'environment' : 'user',
+        frameRate: { ideal: 30, max: 60 },
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (requestedId && requestedId.trim() !== '') {
+        videoConstraint = {
+          deviceId: { exact: requestedId },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 60 },
+        };
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
+      } catch (firstErr) {
+        console.warn('getUserMedia with deviceId constraint failed, falling back to video: true:', firstErr);
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -518,6 +524,7 @@ export default function Dashboard() {
           );
         });
         setCameraPermission('granted');
+        fetchVideoDevices();
       }
     } catch (error: any) {
       console.warn('Camera error:', error);

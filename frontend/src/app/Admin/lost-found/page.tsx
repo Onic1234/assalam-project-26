@@ -323,21 +323,26 @@ export default function LostFoundPage() {
           streamRef.current = null;
         }
 
-        const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
+        const requestedId = targetDeviceId !== undefined ? targetDeviceId : selectedDeviceId;
 
-        const videoConstraints = activeDeviceId
-          ? { deviceId: { exact: activeDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } };
+        let videoConstraints: any = { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } };
+        if (requestedId && requestedId.trim() !== '') {
+          videoConstraints = { deviceId: { exact: requestedId }, width: { ideal: 1280 }, height: { ideal: 720 } };
+        }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false,
-        });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+        } catch (firstErr) {
+          console.warn('getUserMedia with deviceId failed, falling back to video: true:', firstErr);
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           streamRef.current = stream;
         }
+        fetchVideoDevices();
       } catch (err: any) {
         console.error('Camera access error:', err);
         setCameraError('Tidak dapat mengakses kamera. Pastikan browser Anda memiliki izin.');

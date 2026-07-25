@@ -134,7 +134,6 @@ export default function MemberScanCardPage() {
     setError(null);
     setIsCameraLoading(true);
     try {
-      const activeDeviceId = targetDeviceId || selectedDeviceId || (await fetchVideoDevices());
       const ZXingClass = await loadZXingScript();
       if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
         throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
@@ -155,30 +154,45 @@ export default function MemberScanCardPage() {
       const codeReader = new ZXingClass.BrowserMultiFormatReader();
       codeReaderRef.current = codeReader;
 
-      const constraints: MediaStreamConstraints = {
-        video: activeDeviceId
-          ? { deviceId: { exact: activeDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      const requestedId = targetDeviceId !== undefined ? targetDeviceId : selectedDeviceId;
+
+      let videoConstraint: any = { facingMode: 'environment' };
+      if (requestedId && requestedId.trim() !== '') {
+        videoConstraint = { deviceId: { exact: requestedId } };
+      }
+
+      const onScanResult = (result: any, err: any) => {
+        if (result && result.getText()) {
+          const scannedCode = result.getText().trim();
+          console.log('[DEBUG] Barcode / QR Code terdeteksi:', scannedCode);
+          setIdInput(scannedCode);
+          stopCameraStream();
+          handleCodeScanned(scannedCode);
+        }
       };
 
-      await codeReader.decodeFromConstraints(
-        constraints,
-        videoRef.current,
-        (result: any, err: any) => {
-          if (result && result.getText()) {
-            const scannedText = result.getText().trim();
-            console.log('[DEBUG] Barcode / QR Code terdeteksi:', scannedText);
-            stopCameraStream();
-            handleCodeScanned(scannedText);
-          }
-        }
-      );
+      try {
+        await codeReader.decodeFromConstraints(
+          { video: videoConstraint },
+          videoRef.current,
+          onScanResult
+        );
+      } catch (firstErr) {
+        console.warn('Camera decoding with constraint failed, falling back to simple video:', firstErr);
+        await codeReader.decodeFromConstraints(
+          { video: true },
+          videoRef.current,
+          onScanResult
+        );
+      }
+
+      setIsCameraLoading(false);
+      fetchVideoDevices();
     } catch (err: any) {
       console.error('Gagal mengakses kamera:', err);
-      setError(err.message || 'Kamera tidak dapat diakses. Berikan izin akses kamera di browser Anda.');
-      setUseCamera(false);
-    } finally {
+      setError('Kamera tidak dapat diakses. Berikan izin akses kamera.');
       setIsCameraLoading(false);
+      setUseCamera(false);
     }
   };
 
