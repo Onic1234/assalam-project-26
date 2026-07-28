@@ -407,14 +407,11 @@ export default function RegulerPage() {
         setShowQrisModal(true);
         setIsLoading(false); // Reset loading agar modal/tombol interaktif
       } else {
-        // Biarkan isLoading tetap true agar tombol submit tidak bisa diklik lagi selama menunggu redirect
-        setTimeout(() => {
-          router.push(
-            `/Receipt?data=${encodeURIComponent(
-              JSON.stringify(dataForReceipt)
-            )}`
-          );
-        }, 2000);
+        router.push(
+          `/Receipt?data=${encodeURIComponent(
+            JSON.stringify(dataForReceipt)
+          )}`
+        );
       }
     } catch (error: any) {
       setApiResponse({
