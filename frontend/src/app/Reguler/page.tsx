@@ -61,13 +61,23 @@ export default function RegulerPage() {
     return '';
   };
 
-  const loadZXingScript = (): Promise<any> => {
-    return new Promise((resolve) => {
-      if (typeof window === 'undefined') return resolve(null);
-      if ((window as any).ZXing && (window as any).ZXing.BrowserMultiFormatReader) {
-        return resolve((window as any).ZXing);
-      }
+  const loadZXingScript = async (): Promise<any> => {
+    if (typeof window === 'undefined') return null;
 
+    try {
+      const zxingModule = await import('@zxing/library');
+      if (zxingModule && zxingModule.BrowserMultiFormatReader) {
+        return zxingModule;
+      }
+    } catch (e) {
+      console.warn('Direct npm import of @zxing/library failed, using fallback:', e);
+    }
+
+    if ((window as any).ZXing && (window as any).ZXing.BrowserMultiFormatReader) {
+      return (window as any).ZXing;
+    }
+
+    return new Promise((resolve) => {
       const scriptId = 'zxing-cdn-script';
       let script = document.getElementById(scriptId) as HTMLScriptElement;
 
@@ -126,9 +136,13 @@ export default function RegulerPage() {
     setCameraError(null);
     setIsCameraLoading(true);
     try {
+      if (typeof navigator !== 'undefined' && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
+        throw new Error('Kamera membutuhkan koneksi aman (HTTPS). Pastikan situs diakses melalui HTTPS.');
+      }
+
       const ZXingClass = await loadZXingScript();
       if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
-        throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
+        throw new Error('Modul pemindai kamera belum siap.');
       }
 
       let attempts = 0;
@@ -146,11 +160,6 @@ export default function RegulerPage() {
 
       const requestedId = targetDeviceId !== undefined ? targetDeviceId : selectedDeviceId;
 
-      let videoConstraint: any = { facingMode: 'environment' };
-      if (requestedId && requestedId.trim() !== '') {
-        videoConstraint = { deviceId: { exact: requestedId } };
-      }
-
       const onScanResult = (result: any) => {
         if (result && result.getText()) {
           const scannedCode = result.getText().trim();
@@ -161,13 +170,13 @@ export default function RegulerPage() {
       };
 
       try {
-        await codeReader.decodeFromConstraints(
-          { video: videoConstraint },
-          videoRef.current,
-          onScanResult
-        );
+        if (requestedId && requestedId.trim() !== '') {
+          await codeReader.decodeFromVideoDevice(requestedId, videoRef.current, onScanResult);
+        } else {
+          await codeReader.decodeFromVideoDevice(undefined, videoRef.current, onScanResult);
+        }
       } catch (firstErr) {
-        console.warn('Camera decoding with constraint failed, falling back to simple video:', firstErr);
+        console.warn('Camera decoding with decodeFromVideoDevice failed, trying decodeFromConstraints:', firstErr);
         await codeReader.decodeFromConstraints(
           { video: true },
           videoRef.current,

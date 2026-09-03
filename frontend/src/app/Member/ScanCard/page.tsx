@@ -54,14 +54,24 @@ export default function MemberScanCardPage() {
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-  // Dynamic loading of ZXing CDN script for Barcode & QR scanning
-  const loadZXingScript = (): Promise<any> => {
-    return new Promise((resolve) => {
-      if (typeof window === 'undefined') return resolve(null);
-      if ((window as any).ZXing && (window as any).ZXing.BrowserMultiFormatReader) {
-        return resolve((window as any).ZXing);
-      }
+  // Dynamic loading of ZXing for Barcode & QR scanning (tries local npm first, CDN fallback)
+  const loadZXingScript = async (): Promise<any> => {
+    if (typeof window === 'undefined') return null;
 
+    try {
+      const zxingModule = await import('@zxing/library');
+      if (zxingModule && zxingModule.BrowserMultiFormatReader) {
+        return zxingModule;
+      }
+    } catch (e) {
+      console.warn('Direct npm import of @zxing/library failed, using fallback:', e);
+    }
+
+    if ((window as any).ZXing && (window as any).ZXing.BrowserMultiFormatReader) {
+      return (window as any).ZXing;
+    }
+
+    return new Promise((resolve) => {
       const scriptId = 'zxing-cdn-script';
       let script = document.getElementById(scriptId) as HTMLScriptElement;
 
@@ -134,9 +144,13 @@ export default function MemberScanCardPage() {
     setError(null);
     setIsCameraLoading(true);
     try {
+      if (typeof navigator !== 'undefined' && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
+        throw new Error('Kamera membutuhkan koneksi aman (HTTPS). Pastikan situs diakses melalui HTTPS.');
+      }
+
       const ZXingClass = await loadZXingScript();
       if (!ZXingClass || !ZXingClass.BrowserMultiFormatReader) {
-        throw new Error('Modul pemindai belum siap. Periksa koneksi internet Anda.');
+        throw new Error('Modul pemindai kamera belum siap.');
       }
 
       setUseCamera(true);
@@ -156,11 +170,6 @@ export default function MemberScanCardPage() {
 
       const requestedId = targetDeviceId !== undefined ? targetDeviceId : selectedDeviceId;
 
-      let videoConstraint: any = { facingMode: 'environment' };
-      if (requestedId && requestedId.trim() !== '') {
-        videoConstraint = { deviceId: { exact: requestedId } };
-      }
-
       const onScanResult = (result: any, err: any) => {
         if (result && result.getText()) {
           const scannedCode = result.getText().trim();
@@ -172,13 +181,13 @@ export default function MemberScanCardPage() {
       };
 
       try {
-        await codeReader.decodeFromConstraints(
-          { video: videoConstraint },
-          videoRef.current,
-          onScanResult
-        );
+        if (requestedId && requestedId.trim() !== '') {
+          await codeReader.decodeFromVideoDevice(requestedId, videoRef.current, onScanResult);
+        } else {
+          await codeReader.decodeFromVideoDevice(undefined, videoRef.current, onScanResult);
+        }
       } catch (firstErr) {
-        console.warn('Camera decoding with constraint failed, falling back to simple video:', firstErr);
+        console.warn('Camera decoding with decodeFromVideoDevice failed, trying decodeFromConstraints:', firstErr);
         await codeReader.decodeFromConstraints(
           { video: true },
           videoRef.current,
@@ -190,7 +199,7 @@ export default function MemberScanCardPage() {
       fetchVideoDevices();
     } catch (err: any) {
       console.error('Gagal mengakses kamera:', err);
-      setError('Kamera tidak dapat diakses. Berikan izin akses kamera.');
+      setError(err.message || 'Kamera tidak dapat diakses. Berikan izin akses kamera.');
       setIsCameraLoading(false);
       setUseCamera(false);
     }
