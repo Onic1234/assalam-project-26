@@ -57,21 +57,22 @@ const importSantri = async (request, h) => {
     const existingIdsInDb = new Set(existingSantris.map((s) => s.id_santri));
 
     const newSantriToCreate = [];
+    const santriToUpdate = [];
     const failedImports = [];
     const duplicates = [];
-    const processedIds = new Set(existingIdsInDb); // Gabungkan ID dari DB untuk cek duplikat di file
+    const processedInFile = new Set();
 
-    // 3. Loop di memori untuk validasi dan memisahkan data
+    // 3. Loop di memori untuk validasi dan memisahkan data (Create vs Update)
     for (const item of dataFromExcel) {
       const row = item.data;
       const idSantriValue =
         row["ID Santri"] || row["ID_SANTRI"] || row["id_santri"];
 
       const santriData = {
-        no: row["NO"] || null,
+        no: row["NO"] || row["No"] || null,
         id_santri: idSantriValue ? String(idSantriValue).trim() : null,
         nama_santri:
-          row["Nama Santri"] || row["NAMA_SANTRI"] || row["nama_santri"],
+          row["Nama Santri"] || row["NAMA_SANTRI"] || row["nama_santri"] || row["Nama"],
         jenis_kelamin:
           row["L/P"] || row["JENIS_KELAMIN"] || row["jenis_kelamin"],
         kelas: row["Kelas"] || row["KELAS"] || row["kelas"],
@@ -88,12 +89,18 @@ const importSantri = async (request, h) => {
         failedImports.push({
           row: item.rowNumber,
           data: santriData,
-          error: "Data tidak lengkap",
+          error: "Data tidak lengkap (ID, Nama, L/P, Kelas, Unit wajib diisi)",
         });
         continue;
       }
 
-      if (!["L", "P"].includes(santriData.jenis_kelamin)) {
+      // Normalisasi jenis kelamin
+      const jkUpper = String(santriData.jenis_kelamin).trim().toUpperCase();
+      if (jkUpper.startsWith("L")) {
+        santriData.jenis_kelamin = "L";
+      } else if (jkUpper.startsWith("P")) {
+        santriData.jenis_kelamin = "P";
+      } else {
         failedImports.push({
           row: item.rowNumber,
           data: santriData,
@@ -102,26 +109,53 @@ const importSantri = async (request, h) => {
         continue;
       }
 
-      // Cek duplikat (baik dari DB maupun dari baris sebelumnya di file yang sama)
-      if (processedIds.has(santriData.id_santri)) {
+      // Cek duplikasi ID di dalam baris file Excel yang sama
+      if (processedInFile.has(santriData.id_santri)) {
         duplicates.push({
           row: item.rowNumber,
           data: santriData,
-          error: "ID Santri duplikat",
+          error: "ID Santri duplikat di dalam file Excel",
         });
         continue;
       }
+      processedInFile.add(santriData.id_santri);
 
-      newSantriToCreate.push(santriData);
-      processedIds.add(santriData.id_santri);
+      // Pisahkan antara Santri Baru (Create) dan Santri Lama (Update Kelas/Unit/Nama)
+      // FaceID dan Saldo santri lama TIDAK AKAN HILANG / TERHAPUS
+      if (existingIdsInDb.has(santriData.id_santri)) {
+        santriToUpdate.push(santriData);
+      } else {
+        newSantriToCreate.push(santriData);
+      }
     }
 
-    let successImports = [];
+    let successCreated = [];
     if (newSantriToCreate.length > 0) {
-      successImports = await Santri.bulkCreate(newSantriToCreate, {
+      successCreated = await Santri.bulkCreate(newSantriToCreate, {
         returning: true,
       });
     }
+
+    let successUpdated = [];
+    if (santriToUpdate.length > 0) {
+      for (const data of santriToUpdate) {
+        const updatePayload = {
+          nama_santri: data.nama_santri,
+          jenis_kelamin: data.jenis_kelamin,
+          kelas: data.kelas,
+          unit: data.unit,
+        };
+        if (data.no !== null && data.no !== undefined) {
+          updatePayload.no = data.no;
+        }
+        await Santri.update(updatePayload, {
+          where: { id_santri: data.id_santri },
+        });
+        successUpdated.push(data);
+      }
+    }
+
+    const totalSuccess = successCreated.length + successUpdated.length;
 
     return h
       .response({
@@ -129,12 +163,16 @@ const importSantri = async (request, h) => {
         message: "Import selesai",
         summary: {
           total_rows_in_file: dataFromExcel.length,
-          success_count: successImports.length,
+          success_count: totalSuccess,
+          created_count: successCreated.length,
+          updated_count: successUpdated.length,
           failed_count: failedImports.length,
           duplicate_count: duplicates.length,
         },
         details: {
-          successful_imports: successImports,
+          successful_imports: [...successCreated, ...successUpdated],
+          created_santri: successCreated,
+          updated_santri: successUpdated,
           failed_imports: failedImports,
           duplicates: duplicates,
         },
@@ -142,7 +180,6 @@ const importSantri = async (request, h) => {
       .code(200);
   } catch (error) {
     console.error("Error importing santri:", error);
-    // Jika masih ada error (misalnya koneksi DB), tangani di sini
     return Boom.internal("Terjadi kesalahan pada server saat mengimport data");
   }
 };

@@ -10,10 +10,17 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'categoryId',
         as: 'category',
       });
-      // Relasi ke Transaction_detail
-      Produk.hasMany(models.Transaction_detail, {
-        foreignKey: 'productId', // Pastikan foreign key di Transaction_detail adalah 'productId'
-        as: 'transaction_details', // Menyamakan alias dengan yang digunakan di controller
+      // Relasi ke Recipe
+      Produk.hasMany(models.Recipe, {
+        foreignKey: 'productId',
+        as: 'recipes',
+      });
+      // Relasi banyak ke banyak ke Ingredient via Recipe
+      Produk.belongsToMany(models.Ingredient, {
+        through: models.Recipe,
+        foreignKey: 'productId',
+        otherKey: 'ingredientId',
+        as: 'ingredients',
       });
     }
   }

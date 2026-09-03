@@ -6,6 +6,9 @@ const {
   Produk,
   Admin,
   Balance,
+  Recipe,
+  Ingredient,
+  IngredientLog,
   sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
@@ -182,6 +185,39 @@ const transactionController = {
           by: detail.quantity,
           transaction: t,
         });
+
+        // Potong stok bahan baku (Ingredient) jika produk ini memiliki resep sajian
+        try {
+          const recipes = await Recipe.findAll({
+            where: { productId: detail.product.id },
+            include: [{ model: Ingredient, as: 'ingredient' }],
+            transaction: t,
+          });
+          for (const recipe of recipes) {
+            const totalDeduction = recipe.quantity * detail.quantity;
+            await Ingredient.decrement('stock', {
+              by: totalDeduction,
+              where: { id: recipe.ingredientId },
+              transaction: t,
+            });
+
+            // Catat log audit penggunaan bahan baku
+            const costUnit = recipe.ingredient ? recipe.ingredient.costPerUnit : 0;
+            await IngredientLog.create(
+              {
+                ingredientId: recipe.ingredientId,
+                productId: detail.product.id,
+                type: 'USAGE_SALE',
+                quantity: totalDeduction,
+                costTotal: Math.round(totalDeduction * costUnit),
+                notes: `Penjualan POS (Tx #${transaction.id}) - ${detail.quantity} Porsi ${detail.product.name}`,
+              },
+              { transaction: t }
+            );
+          }
+        } catch (ingErr) {
+          console.warn(`⚠️ Warning: Gagal memotong bahan baku untuk produk ${detail.product.id}:`, ingErr.message);
+        }
       }
 
       await t.commit();
@@ -385,7 +421,7 @@ const transactionController = {
           });
       }
 
-      // Kembalikan stok produk jika ini adalah transaksi pembelian
+      // Kembalikan stok produk & bahan baku jika ini adalah transaksi pembelian
       if (transaction.payment_method !== 'TopUp' && transaction.details) {
         for (const detail of transaction.details) {
           await Produk.increment('stock', {
@@ -393,6 +429,24 @@ const transactionController = {
             where: { id: detail.productId },
             transaction: t,
           });
+
+          // Kembalikan stok bahan baku jika produk menggunakan resep
+          try {
+            const recipes = await Recipe.findAll({
+              where: { productId: detail.productId },
+              transaction: t,
+            });
+            for (const recipe of recipes) {
+              const totalRestore = recipe.quantity * detail.quantity;
+              await Ingredient.increment('stock', {
+                by: totalRestore,
+                where: { id: recipe.ingredientId },
+                transaction: t,
+              });
+            }
+          } catch (ingErr) {
+            console.warn(`⚠️ Warning: Gagal mengembalikan bahan baku untuk produk ${detail.productId}:`, ingErr.message);
+          }
         }
       }
 

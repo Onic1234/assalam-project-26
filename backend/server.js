@@ -130,6 +130,19 @@ const init = async () => {
     console.warn('⚠️ Could not verify/create/patch "assets" table:', err.message);
   }
 
+  // Ensure 'ingredients', 'recipes', and 'ingredient_logs' tables exist
+  try {
+    const { Ingredient, Recipe, IngredientLog } = require("./models");
+    await Ingredient.sync();
+    console.log('✅ Table "ingredients" verified/created.');
+    await Recipe.sync();
+    console.log('✅ Table "recipes" verified/created.');
+    await IngredientLog.sync();
+    console.log('✅ Table "ingredient_logs" verified/created.');
+  } catch (err) {
+    console.warn('⚠️ Could not verify/create "ingredients", "recipes", or "ingredient_logs" table:', err.message);
+  }
+
   // Inisialisasi server Hapi
   const server = Hapi.server({
     port: process.env.PORT || 3001,

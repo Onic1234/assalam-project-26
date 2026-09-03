@@ -14,6 +14,7 @@ import {
   Calendar,
   MapPin,
   FileText,
+  Utensils,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -132,6 +133,11 @@ const kasirNavData = [
     icon: Package,
   },
   {
+    title: 'Bahan Baku',
+    url: '/Admin/ingredients',
+    icon: Utensils,
+  },
+  {
     title: 'Transaction',
     url: '/Admin/transactions',
     icon: ShoppingCart,
@@ -154,6 +160,11 @@ const adminNavData = [
     title: 'Product',
     url: '/Admin/products',
     icon: Package,
+  },
+  {
+    title: 'Bahan Baku',
+    url: '/Admin/ingredients',
+    icon: Utensils,
   },
   {
     title: 'Transaction',

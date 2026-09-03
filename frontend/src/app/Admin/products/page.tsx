@@ -40,6 +40,7 @@ import {
   Package,
   Upload,
   Image as ImageIcon,
+  Utensils,
 } from 'lucide-react';
 import {
   Select,
@@ -169,6 +170,80 @@ export default function ProductsPage() {
   });
   const [categoryForm, setCategoryForm] = useState({ name: '' });
 
+  // Recipe Modal States
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [recipeProduct, setRecipeProduct] = useState<Product | null>(null);
+  const [allIngredients, setAllIngredients] = useState<
+    { id: number; name: string; unit: string; stock: number; costPerUnit: number }[]
+  >([]);
+  const [recipeRows, setRecipeRows] = useState<
+    { ingredientId: string; quantity: string }[]
+  >([{ ingredientId: '', quantity: '' }]);
+  const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+
+  const openRecipeModal = async (product: Product) => {
+    setRecipeProduct(product);
+    setIsRecipeModalOpen(true);
+    try {
+      const headers = getAuthHeaders(false);
+      const ingRes = await fetch(`${API_BASE_URL}/ingredients`, { headers });
+      const ingData = await ingRes.json();
+      if (ingRes.ok && ingData.success) {
+        setAllIngredients(ingData.data || []);
+      }
+
+      const recRes = await fetch(`${API_BASE_URL}/products/${product.id}/recipe`, { headers });
+      const recData = await recRes.json();
+      if (recRes.ok && recData.success && Array.isArray(recData.data.ingredients)) {
+        if (recData.data.ingredients.length > 0) {
+          setRecipeRows(
+            recData.data.ingredients.map((item: any) => ({
+              ingredientId: item.ingredientId.toString(),
+              quantity: item.quantity.toString(),
+            }))
+          );
+        } else {
+          setRecipeRows([{ ingredientId: '', quantity: '' }]);
+        }
+      } else {
+        setRecipeRows([{ ingredientId: '', quantity: '' }]);
+      }
+    } catch (err) {
+      console.error('Error loading recipe:', err);
+      toast.error('Gagal memuat resep produk');
+      setRecipeRows([{ ingredientId: '', quantity: '' }]);
+    }
+  };
+
+  const handleSaveRecipe = async () => {
+    if (!recipeProduct) return;
+    setIsSavingRecipe(true);
+    try {
+      const payload = {
+        items: recipeRows
+          .filter((r) => r.ingredientId && parseFloat(r.quantity) > 0)
+          .map((r) => ({
+            ingredientId: parseInt(r.ingredientId),
+            quantity: parseFloat(r.quantity),
+          })),
+      };
+
+      const res = await fetch(`${API_BASE_URL}/products/${recipeProduct.id}/recipe`, {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw data;
+      toast.success('Resep sajian berhasil disimpan');
+      setIsRecipeModalOpen(false);
+    } catch (err: any) {
+      handleApiError(err, 'Gagal menyimpan resep sajian');
+    } finally {
+      setIsSavingRecipe(false);
+    }
+  };
+
   // --- AUTHENTICATION HELPER ---
   const getAuthHeaders = (includeContentType = true) => {
     const token =
@@ -243,6 +318,28 @@ export default function ProductsPage() {
       });
       const data = await response.json();
       if (!response.ok) throw data;
+
+      // Simpan resep bahan baku jika diisi pada form Add Product
+      const createdProdId = data.data?.id;
+      if (
+        createdProdId &&
+        recipeRows.some((r) => r.ingredientId && parseFloat(r.quantity) > 0)
+      ) {
+        const recipePayload = {
+          items: recipeRows
+            .filter((r) => r.ingredientId && parseFloat(r.quantity) > 0)
+            .map((r) => ({
+              ingredientId: parseInt(r.ingredientId),
+              quantity: parseFloat(r.quantity),
+            })),
+        };
+        await fetch(`${API_BASE_URL}/products/${createdProdId}/recipe`, {
+          method: 'POST',
+          headers: getAuthHeaders(true),
+          body: JSON.stringify(recipePayload),
+        });
+      }
+
       toast.success(data.message);
       await fetchProducts(currentPage, searchQuery, selectedCategoryFilter);
       setIsAddProductOpen(false);
@@ -278,6 +375,24 @@ export default function ProductsPage() {
       );
       const data = await response.json();
       if (!response.ok) throw data;
+
+      // Simpan/update resep bahan baku
+      if (selectedProduct.id) {
+        const recipePayload = {
+          items: recipeRows
+            .filter((r) => r.ingredientId && parseFloat(r.quantity) > 0)
+            .map((r) => ({
+              ingredientId: parseInt(r.ingredientId),
+              quantity: parseFloat(r.quantity),
+            })),
+        };
+        await fetch(`${API_BASE_URL}/products/${selectedProduct.id}/recipe`, {
+          method: 'POST',
+          headers: getAuthHeaders(true),
+          body: JSON.stringify(recipePayload),
+        });
+      }
+
       toast.success(data.message);
       await fetchProducts(currentPage, searchQuery, selectedCategoryFilter);
       setIsEditProductOpen(false);
@@ -488,9 +603,26 @@ export default function ProductsPage() {
     fetchProducts(page, searchQuery, selectedCategoryFilter);
   };
 
-  const openEditDialog = (product: Product) => {
+  const openAddProductDialog = async () => {
+    resetProductForm();
+    setRecipeRows([{ ingredientId: '', quantity: '' }]);
+    setIsAddProductOpen(true);
+    try {
+      if (allIngredients.length === 0) {
+        const headers = getAuthHeaders(false);
+        const ingRes = await fetch(`${API_BASE_URL}/ingredients`, { headers });
+        const ingData = await ingRes.json();
+        if (ingRes.ok && ingData.success) {
+          setAllIngredients(ingData.data || []);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching ingredients for add product:', err);
+    }
+  };
+
+  const openEditDialog = async (product: Product) => {
     setSelectedProduct(product);
-    // **CORRECTED**: Populates camelCase form state
     setProductForm({
       name: product.name,
       price: product.price.toString(),
@@ -499,6 +631,37 @@ export default function ProductsPage() {
       image: product.image || '',
     });
     setIsEditProductOpen(true);
+
+    try {
+      const headers = getAuthHeaders(false);
+      if (allIngredients.length === 0) {
+        const ingRes = await fetch(`${API_BASE_URL}/ingredients`, { headers });
+        const ingData = await ingRes.json();
+        if (ingRes.ok && ingData.success) {
+          setAllIngredients(ingData.data || []);
+        }
+      }
+
+      const recRes = await fetch(`${API_BASE_URL}/products/${product.id}/recipe`, { headers });
+      const recData = await recRes.json();
+      if (recRes.ok && recData.success && Array.isArray(recData.data.ingredients)) {
+        if (recData.data.ingredients.length > 0) {
+          setRecipeRows(
+            recData.data.ingredients.map((item: any) => ({
+              ingredientId: item.ingredientId.toString(),
+              quantity: item.quantity.toString(),
+            }))
+          );
+        } else {
+          setRecipeRows([{ ingredientId: '', quantity: '' }]);
+        }
+      } else {
+        setRecipeRows([{ ingredientId: '', quantity: '' }]);
+      }
+    } catch (err) {
+      console.error('Error loading recipe in edit dialog:', err);
+      setRecipeRows([{ ingredientId: '', quantity: '' }]);
+    }
   };
 
   const openEditCategoryDialog = (category: Category) => {
@@ -562,7 +725,7 @@ export default function ProductsPage() {
               <Button
                 size="sm"
                 className="h-9"
-                onClick={() => setIsAddProductOpen(true)}
+                onClick={openAddProductDialog}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
@@ -793,6 +956,16 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 mr-1"
+                            onClick={() => openRecipeModal(product)}
+                            title="Atur Resep Sajian Bahan Baku"
+                          >
+                            <Utensils className="h-3.5 w-3.5 text-amber-700" />
+                            <span className="text-xs font-semibold">Resep</span>
+                          </Button>
+                          <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditDialog(product)}
@@ -840,7 +1013,7 @@ export default function ProductsPage() {
                           Rp {product.price.toLocaleString('id-ID')}
                         </p>
                       </CardContent>
-                      <CardFooter className="p-4 pt-0 flex justify-between">
+                      <CardFooter className="p-4 pt-0 flex items-center justify-between gap-2">
                         <Badge
                           variant={
                             product.stock > 10 ? 'secondary' : 'destructive'
@@ -848,10 +1021,21 @@ export default function ProductsPage() {
                         >
                           Stock: {product.stock}
                         </Badge>
-                        <div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 gap-1 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                            onClick={() => openRecipeModal(product)}
+                            title="Atur Resep Sajian Bahan Baku"
+                          >
+                            <Utensils className="h-3.5 w-3.5 text-amber-700" />
+                            <span className="text-xs font-semibold">Resep</span>
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => openEditDialog(product)}
                           >
                             <Edit className="h-4 w-4" />
@@ -859,6 +1043,7 @@ export default function ProductsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => {
                               setProductToDelete(product);
                               setIsDeleteDialogOpen(true);
@@ -1009,6 +1194,82 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* SECTION RESEP BAHAN BAKU (Sajian) */}
+              <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 mt-2">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1.5 font-bold text-amber-900 text-xs uppercase">
+                    <Utensils className="h-4 w-4 text-amber-600" />
+                    <span>Racikan Resep Bahan Baku (Per 1 Porsi)</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-amber-800 hover:bg-amber-100"
+                    onClick={() => setRecipeRows([...recipeRows, { ingredientId: '', quantity: '' }])}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    + Tambah Bahan
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {recipeRows.map((row, idx) => {
+                    const selectedIng = allIngredients.find((i) => i.id.toString() === row.ingredientId);
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={row.ingredientId}
+                          onChange={(e) => {
+                            const newRows = [...recipeRows];
+                            newRows[idx].ingredientId = e.target.value;
+                            setRecipeRows(newRows);
+                          }}
+                          className="flex-1 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs bg-white focus:border-amber-500 focus:outline-none"
+                        >
+                          <option value="">-- Pilih Bahan Baku --</option>
+                          {allIngredients.map((ing) => (
+                            <option key={ing.id} value={ing.id.toString()}>
+                              {ing.name} ({ing.unit})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-1 w-28">
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="Jumlah"
+                            value={row.quantity}
+                            onChange={(e) => {
+                              const newRows = [...recipeRows];
+                              newRows[idx].quantity = e.target.value;
+                              setRecipeRows(newRows);
+                            }}
+                            className="h-8 text-xs px-2"
+                          />
+                          <span className="text-[11px] text-gray-600 truncate w-8">
+                            {selectedIng ? selectedIng.unit : ''}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                          onClick={() => {
+                            const newRows = recipeRows.filter((_, i) => i !== idx);
+                            setRecipeRows(newRows.length > 0 ? newRows : [{ ingredientId: '', quantity: '' }]);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -1136,6 +1397,82 @@ export default function ProductsPage() {
                       PNG, JPG or WEBP. Square ratio recommended.
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* SECTION RESEP BAHAN BAKU (Sajian) */}
+              <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 mt-2">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1.5 font-bold text-amber-900 text-xs uppercase">
+                    <Utensils className="h-4 w-4 text-amber-600" />
+                    <span>Racikan Resep Bahan Baku (Per 1 Porsi)</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-amber-800 hover:bg-amber-100"
+                    onClick={() => setRecipeRows([...recipeRows, { ingredientId: '', quantity: '' }])}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    + Tambah Bahan
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {recipeRows.map((row, idx) => {
+                    const selectedIng = allIngredients.find((i) => i.id.toString() === row.ingredientId);
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={row.ingredientId}
+                          onChange={(e) => {
+                            const newRows = [...recipeRows];
+                            newRows[idx].ingredientId = e.target.value;
+                            setRecipeRows(newRows);
+                          }}
+                          className="flex-1 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs bg-white focus:border-amber-500 focus:outline-none"
+                        >
+                          <option value="">-- Pilih Bahan Baku --</option>
+                          {allIngredients.map((ing) => (
+                            <option key={ing.id} value={ing.id.toString()}>
+                              {ing.name} ({ing.unit})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-1 w-28">
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="Jumlah"
+                            value={row.quantity}
+                            onChange={(e) => {
+                              const newRows = [...recipeRows];
+                              newRows[idx].quantity = e.target.value;
+                              setRecipeRows(newRows);
+                            }}
+                            className="h-8 text-xs px-2"
+                          />
+                          <span className="text-[11px] text-gray-600 truncate w-8">
+                            {selectedIng ? selectedIng.unit : ''}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                          onClick={() => {
+                            const newRows = recipeRows.filter((_, i) => i !== idx);
+                            setRecipeRows(newRows.length > 0 ? newRows : [{ ingredientId: '', quantity: '' }]);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1292,6 +1629,166 @@ export default function ProductsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* --- DIALOG ATUR RESEP SAJIAN --- */}
+        <Dialog open={isRecipeModalOpen} onOpenChange={setIsRecipeModalOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Utensils className="h-5 w-5 text-amber-600" />
+                <span>Atur Resep Sajian: {recipeProduct?.name}</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-amber-50/80 border border-amber-200 p-3 text-xs text-amber-900">
+                Tentukan takaran bahan baku per 1 porsi/sajian. Saat transaksi dibuat, stok bahan baku akan terpotong secara otomatis.
+              </div>
+
+              {/* Dynamic Recipe Rows */}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 uppercase px-1">
+                  <div className="col-span-6">Bahan Baku (Gudang)</div>
+                  <div className="col-span-4">Takaran per Porsi</div>
+                  <div className="col-span-2 text-right">Aksi</div>
+                </div>
+
+                {recipeRows.map((row, idx) => {
+                  const selectedIng = allIngredients.find((i) => i.id.toString() === row.ingredientId);
+                  return (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-6">
+                        <select
+                          value={row.ingredientId}
+                          onChange={(e) => {
+                            const newRows = [...recipeRows];
+                            newRows[idx].ingredientId = e.target.value;
+                            setRecipeRows(newRows);
+                          }}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                        >
+                          <option value="">-- Pilih Bahan Baku --</option>
+                          {allIngredients.map((ing) => (
+                            <option key={ing.id} value={ing.id.toString()}>
+                              {ing.name} (Stok: {ing.stock} {ing.unit})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-4 flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="Jumlah"
+                          value={row.quantity}
+                          onChange={(e) => {
+                            const newRows = [...recipeRows];
+                            newRows[idx].quantity = e.target.value;
+                            setRecipeRows(newRows);
+                          }}
+                          className="w-full"
+                        />
+                        <span className="text-xs font-medium text-gray-600 w-12 truncate">
+                          {selectedIng ? selectedIng.unit : ''}
+                        </span>
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            const newRows = recipeRows.filter((_, i) => i !== idx);
+                            setRecipeRows(newRows.length > 0 ? newRows : [{ ingredientId: '', quantity: '' }]);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => setRecipeRows([...recipeRows, { ingredientId: '', quantity: '' }])}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Tambah Bahan Lainnya
+              </Button>
+
+              {/* HPP & Portion Calculations */}
+              {(() => {
+                let calculatedHpp = 0;
+                let minPortionCapacity = Infinity;
+
+                recipeRows.forEach((row) => {
+                  const ing = allIngredients.find((i) => i.id.toString() === row.ingredientId);
+                  const qty = parseFloat(row.quantity) || 0;
+                  if (ing && qty > 0) {
+                    calculatedHpp += ing.costPerUnit * qty;
+                    const possiblePortions = Math.floor(ing.stock / qty);
+                    if (possiblePortions < minPortionCapacity) {
+                      minPortionCapacity = possiblePortions;
+                    }
+                  }
+                });
+                if (minPortionCapacity === Infinity) minPortionCapacity = 0;
+
+                const hargaJual = recipeProduct ? recipeProduct.price : 0;
+                const estimasiProfit = hargaJual - calculatedHpp;
+                const profitMargin = hargaJual > 0 ? ((estimasiProfit / hargaJual) * 100).toFixed(1) : '0';
+
+                return (
+                  <div className="rounded-lg bg-gray-50 p-4 border space-y-2 text-xs">
+                    <div className="flex justify-between items-center text-gray-700">
+                      <span>Total HPP Bahan / Porsi:</span>
+                      <strong className="text-sm font-bold text-gray-900">
+                        Rp {calculatedHpp.toLocaleString('id-ID')}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center text-gray-700">
+                      <span>Harga Jual Produk:</span>
+                      <strong className="text-sm font-bold text-emerald-700">
+                        Rp {hargaJual.toLocaleString('id-ID')}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center text-gray-700 border-t pt-2">
+                      <span>Estimasi Margin Profit:</span>
+                      <strong className="text-emerald-700">
+                        Rp {estimasiProfit.toLocaleString('id-ID')} ({profitMargin}%)
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center text-gray-700">
+                      <span>Kapasitas Sisa Porsi di Gudang:</span>
+                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+                        📦 ~{minPortionCapacity} Porsi Tersedia
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsRecipeModalOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button onClick={handleSaveRecipe} disabled={isSavingRecipe} className="bg-amber-600 hover:bg-amber-700 text-white">
+                {isSavingRecipe && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Simpan Resep
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );
